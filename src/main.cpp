@@ -12,12 +12,14 @@
 
 #include <Arduino.h>
 
-int ledPinRight = 9;
-int ledPinLeft = 10;
-#define motor_left_pin1 33
-#define motor_left_pin2 32
-#define motor_right_pin1 35
-#define motor_right_pin2 34
+int ledPinLeft = 15;
+int ledPinRight = 2;
+#define motorLeftPin1 33
+#define motorLeftPin2 32
+#define motorRightPin1 35
+#define motorRightPin2 34
+int motorLeft;
+int motorRight;
 
 #ifdef ESP32
   #include <WiFi.h>
@@ -40,7 +42,7 @@ const char* password = "password";
 const char* PARAM_INT1  = "inputInt1";
 const char* PARAM_INT2 = "inputInt2";
 
-// HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
+// HTML web page to handle 2 input fields (inputInt1 and 2)
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html><head>
   <title>ESP Input Form</title>
@@ -113,10 +115,10 @@ String processor(const String& var){
 void setup() {
   Serial.begin(115200);
 
-  pinMode(motor_left_pin1, OUTPUT);
-  pinMode(motor_left_pin2, OUTPUT);
-  pinMode(motor_right_pin1, OUTPUT);
-  pinMode(motor_right_pin2, OUTPUT);
+  pinMode(motorLeftPin1, OUTPUT);
+  pinMode(motorLeftPin2, OUTPUT);
+  pinMode(motorRightPin1, OUTPUT);
+  pinMode(motorRightPin2, OUTPUT);
 
   // Initialize SPIFFS
   #ifdef ESP32
@@ -170,14 +172,21 @@ void setup() {
 }
 
 void loop() {
-  // To access your stored values on inputString, inputInt, inputFloat
-  String yourInputInt1 = readFile(SPIFFS, "/inputInt1.txt");
+  // To access your stored values on inputInt
+  int yourInputInt1 = readFile(SPIFFS, "/inputInt1.txt").toInt();
   Serial.print("*** Your inputInt1: ");
   Serial.println(yourInputInt1);
   
   int yourInputInt2 = readFile(SPIFFS, "/inputInt2.txt").toInt();
   Serial.print("*** Your inputInt2: ");
   Serial.println(yourInputInt2);
+
+  digitalWrite(motorLeftPin2,LOW);
+  digitalWrite(motorRightPin2,LOW);
+  analogWrite(ledPinLeft, yourInputInt1);
+  analogWrite(ledPinRight, yourInputInt2);
+  analogWrite(motorLeftPin1, yourInputInt1);
+  analogWrite(motorLeftPin2, yourInputInt2);
   
   delay(1000);
 }
