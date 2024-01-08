@@ -1,5 +1,5 @@
-#include <Arduino.h>
 /*********
+ * Own editing of the original ESP32 Server - SPIFFS - version of:
   Rui Santos
   Complete project details at https://RandomNerdTutorials.com/esp32-esp8266-input-data-html-form/
   
@@ -11,6 +11,14 @@
 *********/
 
 #include <Arduino.h>
+
+int ledPinRight = 9;
+int ledPinLeft = 10;
+#define motor_left_pin1 33
+#define motor_left_pin2 32
+#define motor_right_pin1 35
+#define motor_right_pin2 34
+
 #ifdef ESP32
   #include <WiFi.h>
   #include <AsyncTCP.h>
@@ -29,9 +37,8 @@ AsyncWebServer server(80);
 const char* ssid = "ssid";
 const char* password = "password";
 
-const char* PARAM_STRING = "inputString";
-const char* PARAM_INT = "inputInt";
-const char* PARAM_FLOAT = "inputFloat";
+const char* PARAM_INT1  = "inputInt1";
+const char* PARAM_INT2 = "inputInt2";
 
 // HTML web page to handle 3 input fields (inputString, inputInt, inputFloat)
 const char index_html[] PROGMEM = R"rawliteral(
@@ -45,15 +52,11 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
   </script></head><body>
   <form action="/get" target="hidden-form">
-    inputString (current value %inputString%): <input type="text" name="inputString">
+    inputInt1 (current value %inputInt1%): <input type="number1 " name="inputInt1">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputInt (current value %inputInt%): <input type="number " name="inputInt">
-    <input type="submit" value="Submit" onclick="submitMessage()">
-  </form><br>
-  <form action="/get" target="hidden-form">
-    inputFloat (current value %inputFloat%): <input type="number " name="inputFloat">
+    inputInt2 (current value %inputInt2%): <input type="number2 " name="inputInt2">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form>
   <iframe style="display:none" name="hidden-form"></iframe>
@@ -98,20 +101,23 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 // Replaces placeholder with stored values
 String processor(const String& var){
   //Serial.println(var);
-  if(var == "inputString"){
-    return readFile(SPIFFS, "/inputString.txt");
+  if(var == "inputInt1"){
+    return readFile(SPIFFS, "/inputInt1.txt");
   }
-  else if(var == "inputInt"){
-    return readFile(SPIFFS, "/inputInt.txt");
-  }
-  else if(var == "inputFloat"){
-    return readFile(SPIFFS, "/inputFloat.txt");
+  else if(var == "inputInt2"){
+    return readFile(SPIFFS, "/inputInt2.txt");
   }
   return String();
 }
 
 void setup() {
   Serial.begin(115200);
+
+  pinMode(motor_left_pin1, OUTPUT);
+  pinMode(motor_left_pin2, OUTPUT);
+  pinMode(motor_right_pin1, OUTPUT);
+  pinMode(motor_right_pin2, OUTPUT);
+
   // Initialize SPIFFS
   #ifdef ESP32
     if(!SPIFFS.begin(true)){
@@ -143,20 +149,15 @@ void setup() {
   // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
     String inputMessage;
-    // GET inputString value on <ESP_IP>/get?inputString=<inputMessage>
-    if (request->hasParam(PARAM_STRING)) {
-      inputMessage = request->getParam(PARAM_STRING)->value();
-      writeFile(SPIFFS, "/inputString.txt", inputMessage.c_str());
+    // GET inputInt1
+    if (request->hasParam(PARAM_INT1)) {
+      inputMessage = request->getParam(PARAM_INT1)->value();
+      writeFile(SPIFFS, "/inputInt1.txt", inputMessage.c_str());
     }
-    // GET inputInt value on <ESP_IP>/get?inputInt=<inputMessage>
-    else if (request->hasParam(PARAM_INT)) {
-      inputMessage = request->getParam(PARAM_INT)->value();
-      writeFile(SPIFFS, "/inputInt.txt", inputMessage.c_str());
-    }
-    // GET inputFloat value on <ESP_IP>/get?inputFloat=<inputMessage>
-    else if (request->hasParam(PARAM_FLOAT)) {
-      inputMessage = request->getParam(PARAM_FLOAT)->value();
-      writeFile(SPIFFS, "/inputFloat.txt", inputMessage.c_str());
+    // GET inputInt2
+    else if (request->hasParam(PARAM_INT2)) {
+      inputMessage = request->getParam(PARAM_INT2)->value();
+      writeFile(SPIFFS, "/inputInt2.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -170,16 +171,13 @@ void setup() {
 
 void loop() {
   // To access your stored values on inputString, inputInt, inputFloat
-  String yourInputString = readFile(SPIFFS, "/inputString.txt");
-  Serial.print("*** Your inputString: ");
-  Serial.println(yourInputString);
+  String yourInputInt1 = readFile(SPIFFS, "/inputInt1.txt");
+  Serial.print("*** Your inputInt1: ");
+  Serial.println(yourInputInt1);
   
-  int yourInputInt = readFile(SPIFFS, "/inputInt.txt").toInt();
-  Serial.print("*** Your inputInt: ");
-  Serial.println(yourInputInt);
+  int yourInputInt2 = readFile(SPIFFS, "/inputInt2.txt").toInt();
+  Serial.print("*** Your inputInt2: ");
+  Serial.println(yourInputInt2);
   
-  float yourInputFloat = readFile(SPIFFS, "/inputFloat.txt").toFloat();
-  Serial.print("*** Your inputFloat: ");
-  Serial.println(yourInputFloat);
-  delay(5000);
+  delay(1000);
 }
