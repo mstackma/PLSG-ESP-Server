@@ -15,9 +15,16 @@
 #define ledPinRight 15
 #define motorLeftPin1 33
 #define motorLeftPin2 32
-//#define motorRightPin1 35
-//#define motorRightPin2 34
+#define motorRightPin1 27
+#define motorRightPin2 26
 #define buttonPin 4
+#define triggerPin 5
+#define echoPin 18
+//define sound speed in cm/uS
+#define SOUND_SPEED 0.034
+
+long soundWaveDuration;
+float distanceCm;
 
 unsigned long startTime = 0;
 unsigned long duration = 0;
@@ -25,7 +32,7 @@ unsigned long duration = 0;
 const int thresholdLight = 600;
 
 // Variables will change:
-int motorConectionState = LOW;// the current state of the motor-sensor-connection
+int onOff = LOW;// the current state of
 int buttonState = 0;             // the current reading from the input pin
 int lastButtonState = 0;   // the previous reading from the input pin
 int cm = 0;
@@ -137,24 +144,25 @@ void handleClick()
 
       if (duration < 500)
       { // short button press
-        motorConectionState = !motorConectionState;
+        onOff = !onOff;
         Serial.println("-----------------------------short------------------------------------");
       }
       else
       { // long button press
-        motorConectionState = LOW;
+        onOff = LOW;
         Serial.println("-----------------------------long-------------------------------------");
       }
+      Serial.println(distanceCm);
     }
   }
 
   lastButtonState = buttonState;
 }
-/*
+
 //following function from https://www.electronicscuriosities.com/2020/10/ultrasonic-sensor-with-arduino-uno-with.html
-long readUltrasonicDistance(int triggerPin, int echoPin)
+void readUltrasonicDistanceInCm()
 {
-  pinMode(triggerPin, OUTPUT);  // Clear the trigger
+  // Clear the trigger
   digitalWrite(triggerPin, LOW);
   delayMicroseconds(2);
 
@@ -162,57 +170,57 @@ long readUltrasonicDistance(int triggerPin, int echoPin)
   digitalWrite(triggerPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(triggerPin, LOW);
-  pinMode(echoPin, INPUT);
   
-  // Reads the echo pin, and returns the sound wave travel time in microseconds
-  return pulseIn(echoPin, HIGH);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  soundWaveDuration = pulseIn(echoPin, HIGH);
+
+  // Calculate the distance
+  distanceCm = soundWaveDuration * SOUND_SPEED/2;
 }
-*/
+
 //to react when an obstacle is nearby
 void handleMotor() {
-  // measure the ping time in cm
-  
-  /*
-  cm = 0.01723 * readUltrasonicDistance(7, 8);
-  Serial.println(cm);
+  readUltrasonicDistanceInCm();
+  if (distanceCm < 6){
+    analogWrite(ledPinLeft,0);
+    analogWrite(ledPinRight,0);
 
-  if (cm < 6){
     digitalWrite(motorLeftPin1,LOW);    //backwards
     digitalWrite(motorLeftPin2,HIGH);
-    //digitalWrite(motorRightPin1,LOW);
-    //digitalWrite(motorRightPin2,HIGH);
+    digitalWrite(motorRightPin1,LOW);
+    digitalWrite(motorRightPin2,HIGH);
     delay(2000);
-  } */
-  if (motorConectionState == 1) {
+  }
+  if (onOff == 1) {
     analogWrite(ledPinLeft, motorLeft);
     analogWrite(ledPinRight, motorRight);
 
     analogWrite(motorLeftPin1, motorLeft);  //forwards
     digitalWrite(motorLeftPin2,LOW);
-    //analogWrite(motorRightPin1, motorRight);
-    //digitalWrite(motorRightPin2,LOW);
+    analogWrite(motorRightPin1, motorRight);
+    digitalWrite(motorRightPin2,LOW);
   } else {
     analogWrite(ledPinLeft,0);
     analogWrite(ledPinRight,0);
 
     digitalWrite(motorLeftPin1,LOW);  //stop
     digitalWrite(motorLeftPin2,LOW);
-    //digitalWrite(motorRightPin1,LOW);
-    //digitalWrite(motorRightPin2,LOW);
+    digitalWrite(motorRightPin1,LOW);
+    digitalWrite(motorRightPin2,LOW);
   }
 }
 
 void setup() {
   Serial.begin(115200);
 
+  pinMode(triggerPin, OUTPUT);
+  pinMode(echoPin, INPUT);
   pinMode(ledPinLeft, OUTPUT);
-  digitalWrite(ledPinLeft, LOW);
   pinMode(ledPinRight, OUTPUT);
-  digitalWrite(ledPinRight, LOW);
   pinMode(motorLeftPin1, OUTPUT);
   pinMode(motorLeftPin2, OUTPUT);
-  //pinMode(motorRightPin1, OUTPUT);
-  //pinMode(motorRightPin2, OUTPUT);
+  pinMode(motorRightPin1, OUTPUT);
+  pinMode(motorRightPin2, OUTPUT);
 
   pinMode(buttonPin, INPUT);
 
