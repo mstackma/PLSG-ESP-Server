@@ -23,21 +23,26 @@
 //define sound speed in cm/uS
 #define SOUND_SPEED 0.034
 
-long soundWaveDuration;
+long durationSoundWave;
 float distanceCm;
 
 unsigned long startTime = 0;
-unsigned long duration = 0;
+unsigned long durationButtonClick = 0;
 
+int analogLightValueRight;
+int analogLightValueLeft;
 const int thresholdLight = 600;
 
 // Variables will change:
-int onOff = LOW;// the current state of
-int buttonState = 0;             // the current reading from the input pin
+int onOff = LOW;  // on or off
+int appControl = LOW;  // the current state: App-controlled or autonomous robot
+int buttonState = 0;  // the current reading from the input pin
 int lastButtonState = 0;   // the previous reading from the input pin
-int cm = 0;
-int motorLeft;
-int motorRight;
+int cm = 0; // distance cm
+int motorLeftF; // motorLeftForward Value
+int motorRightF;  // motorRightForward Value
+int motorLeftB; // motorLeftBackward Value
+int motorRightB;  // motorRightBackward Value
 
 #ifdef ESP32
   #include <WiFi.h>
@@ -140,11 +145,11 @@ void handleClick()
     }
     else
     {
-      duration = millis() - startTime;
-
-      if (duration < 500)
+      durationButtonClick = millis() - startTime;
+      if (durationButtonClick < 500)
       { // short button press
-        onOff = !onOff;
+        appControl = !appControl;
+        onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
       }
       else
@@ -155,7 +160,6 @@ void handleClick()
       Serial.println(distanceCm);
     }
   }
-
   lastButtonState = buttonState;
 }
 
@@ -172,10 +176,23 @@ void readUltrasonicDistanceInCm()
   digitalWrite(triggerPin, LOW);
   
   // Reads the echoPin, returns the sound wave travel time in microseconds
-  soundWaveDuration = pulseIn(echoPin, HIGH);
+  durationSoundWave = pulseIn(echoPin, HIGH);
 
   // Calculate the distance
-  distanceCm = soundWaveDuration * SOUND_SPEED/2;
+  distanceCm = durationSoundWave * SOUND_SPEED/2;
+}
+
+//Braitenberg-Vehicel 2 connection
+void motorLightSensorConnection(String cross_or_parallel) {
+  digitalWrite(motorLeftPin2,LOW);
+  digitalWrite(motorRightPin2,LOW);
+  if ( cross_or_parallel == "cross" ) {
+    analogWrite(motorLeftPin1, map(analogLightValueRight, 0, 1023, 0, 255));
+    analogWrite(motorRightPin1, map(analogLightValueLeft, 0, 1023, 0, 255));
+  } else if ( cross_or_parallel == "parallel" ) {
+    analogWrite(motorLeftPin1, map(analogLightValueLeft, 0, 1023, 0, 255));
+    analogWrite(motorRightPin1, map(analogLightValueRight, 0, 1023, 0, 255));
+  }
 }
 
 //to react when an obstacle is nearby
@@ -191,15 +208,24 @@ void handleMotor() {
     digitalWrite(motorRightPin2,HIGH);
     delay(2000);
   }
-  if (onOff == 1) {
-    analogWrite(ledPinLeft, motorLeft);
-    analogWrite(ledPinRight, motorRight);
+  if (onOff == 1 && appControl == 1) {
+    analogWrite(ledPinLeft,motorLeftF);
+    analogWrite(ledPinRight,motorRightF);
 
-    analogWrite(motorLeftPin1, motorLeft);  //forwards
+    analogWrite(motorLeftPin1,motorLeftF);  //forwards
     digitalWrite(motorLeftPin2,LOW);
-    analogWrite(motorRightPin1, motorRight);
+    analogWrite(motorRightPin1,motorRightF);
     digitalWrite(motorRightPin2,LOW);
-  } else {
+  } /* else if (onOff == 1 && appControl == 0) {
+    // reads the input on analog pin (value between 0 and 1023)
+    analogLightValueRight = analogRead(SensorPin1);
+    analogLightValueLeft = analogRead(SensorPin2);
+
+    analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
+    analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 1023, 0, 255));
+    motorLightSensorConnection( "cross" ); //Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
+  } */
+  else {
     analogWrite(ledPinLeft,0);
     analogWrite(ledPinRight,0);
 
@@ -286,10 +312,10 @@ void loop() {
   //Serial.println(yourInputInt2);
 
   if (yourInputInt1 <= 255) {
-    motorLeft = yourInputInt1;
+    motorLeftF = yourInputInt1;
   }
   if (yourInputInt2 <= 255) {
-    motorRight = yourInputInt2;
+    motorRightF = yourInputInt2;
   }
 
   buttonState = digitalRead(buttonPin);
