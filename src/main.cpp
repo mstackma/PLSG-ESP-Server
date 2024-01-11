@@ -62,10 +62,12 @@ AsyncWebServer server(80);
 const char* ssid = "ssid";
 const char* password = "password";
 
-const char* PARAM_INT1  = "inputInt1";
-const char* PARAM_INT2 = "inputInt2";
+const char* PARAM_INT1  = "motorLeftF";
+const char* PARAM_INT2 = "motorRightF";
+const char* PARAM_INT3  = "motorLeftB";
+const char* PARAM_INT4 = "motorRightB";
 
-// HTML web page to handle 2 input fields (inputInt1 and 2)
+// HTML web page to handle 2 input fields (motorLeftF and 2)
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html><head>
   <title>ESP Input Form</title>
@@ -77,11 +79,19 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
   </script></head><body>
   <form action="/get" target="hidden-form">
-    inputInt1 (current value %inputInt1%): <input type="number" name="inputInt1">
+    motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputInt2 (current value %inputInt2%): <input type="number" name="inputInt2">
+    motorRightF (current value %motorRightF%): <input type="number" name="motorRightF">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    motorLeftB (current value %motorLeftB%): <input type="number" name="motorLeftB">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    motorRightB (current value %motorRightB%): <input type="number" name="motorRightB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form>
   <iframe style="display:none" name="hidden-form"></iframe>
@@ -126,11 +136,17 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 // Replaces placeholder with stored values
 String processor(const String& var){
   //Serial.println(var);
-  if(var == "inputInt1"){
-    return readFile(SPIFFS, "/inputInt1.txt");
+  if(var == "motorLeftF"){
+    return readFile(SPIFFS, "/motorLeftF.txt");
   }
-  else if(var == "inputInt2"){
-    return readFile(SPIFFS, "/inputInt2.txt");
+  else if(var == "motorRightF"){
+    return readFile(SPIFFS, "/motorRightF.txt");
+  }
+  else if(var == "motorLeftB"){
+    return readFile(SPIFFS, "/motorLeftB.txt");
+  }
+  else if(var == "motorRightB"){
+    return readFile(SPIFFS, "/motorRightB.txt");
   }
   return String();
 }
@@ -149,6 +165,7 @@ void handleClick()
       if (durationButtonClick < 500)
       { // short button press
         appControl = !appControl;
+        Serial.println(appControl);
         onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
       }
@@ -212,10 +229,10 @@ void handleMotor() {
     analogWrite(ledPinLeft,motorLeftF);
     analogWrite(ledPinRight,motorRightF);
 
-    analogWrite(motorLeftPin1,motorLeftF);  //forwards
-    digitalWrite(motorLeftPin2,LOW);
+    analogWrite(motorLeftPin1,motorLeftF);
+    digitalWrite(motorLeftPin2,motorLeftB);
     analogWrite(motorRightPin1,motorRightF);
-    digitalWrite(motorRightPin2,LOW);
+    digitalWrite(motorRightPin2,motorRightB);
   } /* else if (onOff == 1 && appControl == 0) {
     // reads the input on analog pin (value between 0 and 1023)
     analogLightValueRight = analogRead(SensorPin1);
@@ -281,15 +298,25 @@ void setup() {
   // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
     String inputMessage;
-    // GET inputInt1
+    // GET motorLeftF
     if (request->hasParam(PARAM_INT1)) {
       inputMessage = request->getParam(PARAM_INT1)->value();
-      writeFile(SPIFFS, "/inputInt1.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/motorLeftF.txt", inputMessage.c_str());
     }
-    // GET inputInt2
+    // GET motorRightF
     else if (request->hasParam(PARAM_INT2)) {
       inputMessage = request->getParam(PARAM_INT2)->value();
-      writeFile(SPIFFS, "/inputInt2.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/motorRightF.txt", inputMessage.c_str());
+    }
+    // GET motorLeftB
+    else if (request->hasParam(PARAM_INT3)) {
+      inputMessage = request->getParam(PARAM_INT3)->value();
+      writeFile(SPIFFS, "/motorLeftB.txt", inputMessage.c_str());
+    }
+    // GET motorRightB
+    else if (request->hasParam(PARAM_INT4)) {
+      inputMessage = request->getParam(PARAM_INT4)->value();
+      writeFile(SPIFFS, "/motorRightB.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -303,20 +330,26 @@ void setup() {
 
 void loop() {  
   // To access your stored values on inputInt
-  int yourInputInt1 = readFile(SPIFFS, "/inputInt1.txt").toInt();
-  //Serial.print("*** Your inputInt1: ");
+  int yourInputInt1 = readFile(SPIFFS, "/motorLeftF.txt").toInt();
+  //Serial.print("*** Your motorLeftF: ");
   //Serial.println(yourInputInt1);
   
-  int yourInputInt2 = readFile(SPIFFS, "/inputInt2.txt").toInt();
-  //Serial.print("*** Your inputInt2: ");
+  int yourInputInt2 = readFile(SPIFFS, "/motorRightF.txt").toInt();
+  //Serial.print("*** Your motorRightF: ");
   //Serial.println(yourInputInt2);
 
-  if (yourInputInt1 <= 255) {
-    motorLeftF = yourInputInt1;
-  }
-  if (yourInputInt2 <= 255) {
-    motorRightF = yourInputInt2;
-  }
+  int yourInputInt3 = readFile(SPIFFS, "/motorLeftB.txt").toInt();
+  //Serial.print("*** Your motorLeftB: ");
+  //Serial.println(yourInputInt2);
+
+  int yourInputInt4 = readFile(SPIFFS, "/motorRightB.txt").toInt();
+  //Serial.print("*** Your motorRightB: ");
+  //Serial.println(yourInputInt2);
+
+  motorLeftF = yourInputInt1;
+  motorRightF = yourInputInt2;
+  motorLeftB = yourInputInt3;
+  motorRightB = yourInputInt4;
 
   buttonState = digitalRead(buttonPin);
   handleClick();
