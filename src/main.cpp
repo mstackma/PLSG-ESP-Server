@@ -34,7 +34,7 @@ int analogLightValueLeft;
 const int thresholdLight = 600;
 
 // Variables will change:
-int onOff = LOW;         // on or off
+int onOff = LOW;         // robot motor, led state: on or off
 int appControl = LOW;    // the current state: App-controlled or autonomous robot
 int buttonState = 0;     // the current reading from the input pin
 int lastButtonState = 0; // the previous reading from the input pin
@@ -59,8 +59,8 @@ int motorRightB;         // motorRightBackward Value
 AsyncWebServer server(80);
 
 // REPLACE WITH YOUR NETWORK CREDENTIALS
-const char* ssid = "ssid";
-const char* password = "password";
+const char *ssid = "ssid";
+const char *password = "password";
 
 const char *PARAM_INT1 = "motorLeftF";
 const char *PARAM_INT2 = "motorRightF";
@@ -73,7 +73,7 @@ const char *PARAM_INPUT_1 = "state";
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
-  <title>ESP Web Server</title>
+  <title>Robot Control Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>
     function submitMessage() {
@@ -95,7 +95,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
-  <h2>ESP Web Server</h2>
+  <h2>Robot Control Center</h2>
   %BUTTONPLACEHOLDER%
 <script>function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
@@ -126,6 +126,7 @@ setInterval(function ( ) {
   xhttp.send();
 }, 1000 ) ;
 </script>
+<br><br><br><br>
 <form action="/get" target="hidden-form">
     motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
     <input type="submit" value="Submit" onclick="submitMessage()">
@@ -229,6 +230,7 @@ String processor(const String &var)
   {
     String buttons = "";
     String appControlStateValue = appControlState();
+    // HTML text to display the button with the right state:
     buttons += "<h4>appControl - State <span id=\"appControlState\"></span></h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"appControl\" " + appControlStateValue + "><span class=\"slider\"></span></label>";
     return buttons;
   }
@@ -437,8 +439,6 @@ void setup()
       inputMessage = "No message sent";
       inputParam = "none";
     }
-    Serial.println("inputMessage");
-    Serial.println(inputMessage);
     request->send(200, "text/plain", "OK"); });
 
   // Send a GET request to <ESP_IP>/state
