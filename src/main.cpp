@@ -13,10 +13,10 @@
 
 #define ledPinLeft 2
 #define ledPinRight 15
-#define motorLeftPin1 33
-#define motorLeftPin2 32
-#define motorRightPin1 27
-#define motorRightPin2 26
+#define motorLeftPin1 32
+#define motorLeftPin2 33
+#define motorRightPin1 26
+#define motorRightPin2 27
 #define buttonPin 4
 #define triggerPin 5
 #define echoPin 18
@@ -59,8 +59,8 @@ int motorRightB;         // motorRightBackward Value
 AsyncWebServer server(80);
 
 // REPLACE WITH YOUR NETWORK CREDENTIALS
-const char *ssid = "ssid";
-const char *password = "password";
+const char* ssid = "ssid";
+const char* password = "password";
 
 const char *PARAM_INT1 = "motorLeftF";
 const char *PARAM_INT2 = "motorRightF";
@@ -69,7 +69,7 @@ const char *PARAM_INT4 = "motorRightB";
 
 const char *PARAM_INPUT_1 = "state";
 
-// HTML web page to handle 2 input fields (motorLeftF and 2)
+// HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -255,6 +255,7 @@ void handleClick()
       }
       else
       { // long button press
+        appControl = LOW;
         onOff = LOW;
         Serial.println("-----------------------------long-------------------------------------");
       }
@@ -286,8 +287,8 @@ void readUltrasonicDistanceInCm()
 // Braitenberg-Vehicel 2 connection
 void motorLightSensorConnection(String cross_or_parallel)
 {
-  digitalWrite(motorLeftPin2, LOW);
-  digitalWrite(motorRightPin2, LOW);
+  analogWrite(motorLeftPin2, 0);
+  analogWrite(motorRightPin2, 0);
   if (cross_or_parallel == "cross")
   {
     analogWrite(motorLeftPin1, map(analogLightValueRight, 0, 1023, 0, 255));
@@ -304,15 +305,15 @@ void motorLightSensorConnection(String cross_or_parallel)
 void handleMotor()
 {
   readUltrasonicDistanceInCm();
-  if (distanceCm < 6)
+  if (onOff == 1 && distanceCm < 6)
   {
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
-    digitalWrite(motorLeftPin1, LOW); // backwards
-    digitalWrite(motorLeftPin2, HIGH);
-    digitalWrite(motorRightPin1, LOW);
-    digitalWrite(motorRightPin2, HIGH);
+    analogWrite(motorLeftPin1, 0); // backwards
+    analogWrite(motorLeftPin2, 200);
+    analogWrite(motorRightPin1, 0);
+    analogWrite(motorRightPin2, 200);
     delay(2000);
   }
   if (onOff == 1 && appControl == 1)
@@ -321,9 +322,9 @@ void handleMotor()
     analogWrite(ledPinRight, motorRightF);
 
     analogWrite(motorLeftPin1, motorLeftF);
-    digitalWrite(motorLeftPin2, motorLeftB);
+    analogWrite(motorLeftPin2, motorLeftB);
     analogWrite(motorRightPin1, motorRightF);
-    digitalWrite(motorRightPin2, motorRightB);
+    analogWrite(motorRightPin2, motorRightB);
   } /* else if (onOff == 1 && appControl == 0) {
     // reads the input on analog pin (value between 0 and 1023)
     analogLightValueRight = analogRead(SensorPin1);
@@ -338,10 +339,10 @@ void handleMotor()
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
-    digitalWrite(motorLeftPin1, LOW); // stop
-    digitalWrite(motorLeftPin2, LOW);
-    digitalWrite(motorRightPin1, LOW);
-    digitalWrite(motorRightPin2, LOW);
+    analogWrite(motorLeftPin1, 0); // stop
+    analogWrite(motorLeftPin2, 0);
+    analogWrite(motorRightPin1, 0);
+    analogWrite(motorRightPin2, 0);
   }
 }
 
@@ -429,6 +430,7 @@ void setup()
     if (request->hasParam(PARAM_INPUT_1)) {
       inputMessage = request->getParam(PARAM_INPUT_1)->value();
       inputParam = PARAM_INPUT_1;
+      onOff = HIGH;
       appControl = !appControl;
     }
     else {
@@ -449,7 +451,7 @@ void setup()
 
 void loop()
 {
-  // To access your stored values on inputInt
+  // To access your stored values on motor..
   int yourInputInt1 = readFile(SPIFFS, "/motorLeftF.txt").toInt();
   // Serial.print("*** Your motorLeftF: ");
   // Serial.println(yourInputInt1);
