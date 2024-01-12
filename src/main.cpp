@@ -20,6 +20,7 @@
 #define buttonPin 4
 #define triggerPin 5
 #define echoPin 18
+#define lightSensorPin1 34
 // define sound speed in cm/uS
 #define SOUND_SPEED 0.034
 
@@ -29,8 +30,8 @@ float distanceCm;
 unsigned long startTime = 0;
 unsigned long durationButtonClick = 0;
 
-int analogLightValueRight;
 int analogLightValueLeft;
+int analogLightValueRight;
 const int thresholdLight = 600;
 
 // Variables will change:
@@ -75,12 +76,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 <head>
   <title>Robot Control Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    function submitMessage() {
-      alert("Saved value to ESP SPIFFS");
-      setTimeout(function(){ document.location.reload(false); }, 500);   
-    }
-  </script>
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
     h2 {font-size: 3.0rem;}
@@ -92,12 +87,39 @@ const char index_html[] PROGMEM = R"rawliteral(
     .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 68px}
     input:checked+.slider {background-color: #2196F3}
     input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
+    .units {font-size: 1.2rem;}
+    .sensor-label {font-size: 1.5rem; vertical-align:middle; padding-bottom: 15px;}
   </style>
 </head>
 <body>
   <h2>Robot Control Center</h2>
   %BUTTONPLACEHOLDER%
-<script>function toggleCheckbox(element) {
+  <br><br><br><br>
+<form action="/get" target="hidden-form">
+    motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    motorRightF (current value %motorRightF%): <input type="number" name="motorRightF">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    motorLeftB (current value %motorLeftB%): <input type="number" name="motorLeftB">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    motorRightB (current value %motorRightB%): <input type="number" name="motorRightB">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <p>
+    <span class="sensor-label">Brightness</span> 
+    <span id="lightL">%LIGHTL%</span>
+    <sup class="units">lx</sup>
+  </p>
+  <iframe style="display:none" name="hidden-form"></iframe>
+</body>
+<script>
+function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
   if(element.checked){ xhr.open("GET", "/update?state=1", true); }
   else { xhr.open("GET", "/update?state=0", true); }
@@ -125,28 +147,24 @@ setInterval(function ( ) {
   xhttp.open("GET", "/state", true);
   xhttp.send();
 }, 1000 ) ;
+
+function submitMessage() {
+      alert("Saved value to ESP SPIFFS");
+      setTimeout(function(){ document.location.reload(false); }, 500);   
+    }
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("lightL").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/lightL", true);
+  xhttp.send();
+}, 10000 ) ;
 </script>
-<br><br><br><br>
-<form action="/get" target="hidden-form">
-    motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
-    <input type="submit" value="Submit" onclick="submitMessage()">
-  </form><br>
-  <form action="/get" target="hidden-form">
-    motorRightF (current value %motorRightF%): <input type="number" name="motorRightF">
-    <input type="submit" value="Submit" onclick="submitMessage()">
-  </form><br>
-  <form action="/get" target="hidden-form">
-    motorLeftB (current value %motorLeftB%): <input type="number" name="motorLeftB">
-    <input type="submit" value="Submit" onclick="submitMessage()">
-  </form><br>
-  <form action="/get" target="hidden-form">
-    motorRightB (current value %motorRightB%): <input type="number" name="motorRightB">
-    <input type="submit" value="Submit" onclick="submitMessage()">
-  </form>
-  <iframe style="display:none" name="hidden-form"></iframe>
-</body>
-</html>
-)rawliteral";
+</html>)rawliteral";
 
 void notFound(AsyncWebServerRequest *request)
 {
@@ -234,6 +252,14 @@ String processor(const String &var)
     buttons += "<h4>appControl - State <span id=\"appControlState\"></span></h4><label class=\"switch\"><input type=\"checkbox\" onchange=\"toggleCheckbox(this)\" id=\"appControl\" " + appControlStateValue + "><span class=\"slider\"></span></label>";
     return buttons;
   }
+  else if (var == "LIGHTL")
+  {
+    // reads the input on analog pin (value between 0 and 4095)
+    analogLightValueLeft = analogRead(lightSensorPin1);
+    Serial.println("analogLightValueLeft");
+    Serial.println(analogLightValueLeft);
+    return String(analogLightValueLeft);
+  }
   return String();
 }
 
@@ -254,6 +280,8 @@ void handleClick()
         Serial.println(appControl);
         onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
+        Serial.println("analogLightValueLeft");
+        Serial.print(analogLightValueLeft);
       }
       else
       { // long button press
@@ -329,11 +357,11 @@ void handleMotor()
     analogWrite(motorRightPin2, motorRightB);
   } /* else if (onOff == 1 && appControl == 0) {
     // reads the input on analog pin (value between 0 and 1023)
-    analogLightValueRight = analogRead(SensorPin1);
-    analogLightValueLeft = analogRead(SensorPin2);
+    analogLightValueLeft = analogRead(lightSensorPin1);
+    //analogLightValueRight = analogRead(lightSensorPin2);
 
-    analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
     analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 1023, 0, 255));
+    //analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
     motorLightSensorConnection( "cross" ); //Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
   } */
   else
@@ -444,6 +472,10 @@ void setup()
   // Send a GET request to <ESP_IP>/state
   server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(200, "text/plain", String(appControl).c_str()); });
+
+  server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str());
+  });
 
   server.onNotFound(notFound);
   server.begin();
