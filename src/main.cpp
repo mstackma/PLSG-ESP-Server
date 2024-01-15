@@ -21,11 +21,11 @@
 #define triggerPin 5
 #define echoPin 18
 #define lightSensorPin1 34
+#define lightSensorPin2 35
 // define sound speed in cm/uS
 #define SOUND_SPEED 0.034
 
 long durationSoundWave;
-float distanceCm;
 
 unsigned long startTime = 0;
 unsigned long durationButtonClick = 0;
@@ -63,12 +63,12 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "motorLeftF";
-const char *PARAM_INT2 = "motorRightF";
-const char *PARAM_INT3 = "motorLeftB";
-const char *PARAM_INT4 = "motorRightB";
+const char *PARAM_INT1 = "inputMotorLeftF"; // inputMotorLeftF
+const char *PARAM_INT2 = "inputMotorRightF"; // inputMotorRightF
+const char *PARAM_INT3 = "inputMotorLeftB"; // inputMotorLeftB
+const char *PARAM_INT4 = "inputMotorRightB"; // inputMotorRightB
 
-const char *PARAM_INPUT_1 = "state";
+const char *PARAM_INPUT_1 = "state"; // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
@@ -97,24 +97,29 @@ const char index_html[] PROGMEM = R"rawliteral(
   <br><br><br><br>
   <iframe style="display:none" name="hidden-form"></iframe>
 <form action="/get" target="hidden-form">
-    motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
+    MotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    motorRightF (current value %motorRightF%): <input type="number" name="motorRightF">
+    MotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    motorLeftB (current value %motorLeftB%): <input type="number" name="motorLeftB">
+    MotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    motorRightB (current value %motorRightB%): <input type="number" name="motorRightB">
+    MotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <p>
-    <span class="sensor">Brightness</span> 
+    <span class="sensor">Brightness Sensor Left</span> 
     <span id="lightL">%LIGHTL%</span>
+    <sup class="units">lx</sup>
+  </p>
+  <p>
+    <span class="sensor">Brightness Sensor Right</span> 
+    <span id="lightR">%LIGHTR%</span>
     <sup class="units">lx</sup>
   </p>
   <p>
@@ -166,6 +171,17 @@ setInterval(function ( ) {
     }
   };
   xhttp.open("GET", "/lightL", true);
+  xhttp.send();
+}, 10000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("lightR").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/lightR", true);
   xhttp.send();
 }, 10000 ) ;
 
@@ -255,7 +271,7 @@ float readUltrasonicDistanceInCm()
   durationSoundWave = pulseIn(echoPin, HIGH);
 
   // Calculate the distance
-  distanceCm = durationSoundWave * SOUND_SPEED / 2;
+  float distanceCm = durationSoundWave * SOUND_SPEED / 2;
 
   return distanceCm;
 }
@@ -264,21 +280,21 @@ float readUltrasonicDistanceInCm()
 String processor(const String &var)
 {
   // Serial.println(var);
-  if (var == "motorLeftF")
+  if (var == "inputMotorLeftF")
   {
-    return readFile(SPIFFS, "/motorLeftF.txt");
+    return readFile(SPIFFS, "/inputMotorLeftF.txt");
   }
-  else if (var == "motorRightF")
+  else if (var == "inputMotorRightF")
   {
-    return readFile(SPIFFS, "/motorRightF.txt");
+    return readFile(SPIFFS, "/inputMotorRightF.txt");
   }
-  else if (var == "motorLeftB")
+  else if (var == "inputMotorLeftB")
   {
-    return readFile(SPIFFS, "/motorLeftB.txt");
+    return readFile(SPIFFS, "/inputMotorLeftB.txt");
   }
-  else if (var == "motorRightB")
+  else if (var == "inputMotorRightB")
   {
-    return readFile(SPIFFS, "/motorRightB.txt");
+    return readFile(SPIFFS, "/inputMotorRightB.txt");
   }
   else if (var == "BUTTONPLACEHOLDER")
   {
@@ -296,9 +312,17 @@ String processor(const String &var)
     Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
   }
+  else if (var == "LIGHTR")
+  {
+    // reads the input on analog pin (value between 0 and 4095)
+    analogLightValueRight = analogRead(lightSensorPin2);
+    Serial.println("analogLightValueRight");
+    Serial.println(analogLightValueRight);
+    return String(analogLightValueRight);
+  }
   else if (var == "ULTRADISTANCE")
   {
-    distanceCm = readUltrasonicDistanceInCm();
+    float distanceCm = readUltrasonicDistanceInCm();
     Serial.println("distanceCm");
     Serial.println(distanceCm);
     return String(distanceCm);
@@ -325,6 +349,8 @@ void handleClick()
         Serial.println("-----------------------------short------------------------------------");
         Serial.println("analogLightValueLeft");
         Serial.print(analogLightValueLeft);
+        Serial.println("analogLightValueRight");
+        Serial.print(analogLightValueRight);
       }
       else
       { // long button press
@@ -378,15 +404,15 @@ void handleMotor()
     analogWrite(motorLeftPin2, motorLeftB);
     analogWrite(motorRightPin1, motorRightF);
     analogWrite(motorRightPin2, motorRightB);
-  } /* else if (onOff == 1 && appControl == 0) {
+  } else if (onOff == 1 && appControl == 0) {
     // reads the input on analog pin (value between 0 and 1023)
     analogLightValueLeft = analogRead(lightSensorPin1);
-    //analogLightValueRight = analogRead(lightSensorPin2);
+    analogLightValueRight = analogRead(lightSensorPin2);
 
     analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 1023, 0, 255));
-    //analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
+    analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
     motorLightSensorConnection( "cross" ); //Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
-  } */
+  }
   else
   {
     analogWrite(ledPinLeft, 0);
@@ -448,25 +474,25 @@ void setup()
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request)
             {
     String inputMessage;
-    // GET motorLeftF
+    // GET inputMotorLeftF
     if (request->hasParam(PARAM_INT1)) {
       inputMessage = request->getParam(PARAM_INT1)->value();
-      writeFile(SPIFFS, "/motorLeftF.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
     }
     // GET motorRightF
     else if (request->hasParam(PARAM_INT2)) {
       inputMessage = request->getParam(PARAM_INT2)->value();
-      writeFile(SPIFFS, "/motorRightF.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
     // GET motorLeftB
     else if (request->hasParam(PARAM_INT3)) {
       inputMessage = request->getParam(PARAM_INT3)->value();
-      writeFile(SPIFFS, "/motorLeftB.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
     }
     // GET motorRightB
     else if (request->hasParam(PARAM_INT4)) {
       inputMessage = request->getParam(PARAM_INT4)->value();
-      writeFile(SPIFFS, "/motorRightB.txt", inputMessage.c_str());
+      writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -500,6 +526,10 @@ void setup()
     request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str());
   });
 
+  server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str());
+  });
+
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str());
   });
@@ -511,26 +541,21 @@ void setup()
 void loop()
 {
   // To access your stored values on motor..
-  int yourInputInt1 = readFile(SPIFFS, "/motorLeftF.txt").toInt();
-  // Serial.print("*** Your motorLeftF: ");
-  // Serial.println(yourInputInt1);
+  motorLeftF = readFile(SPIFFS, "/inputMotorLeftF.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftF: ");
+  // Serial.println(motorLeftF);
 
-  int yourInputInt2 = readFile(SPIFFS, "/motorRightF.txt").toInt();
-  // Serial.print("*** Your motorRightF: ");
-  // Serial.println(yourInputInt2);
+  motorRightF = readFile(SPIFFS, "/inputMotorRightF.txt").toInt();
+  // Serial.print("*** Your inputMotorRightF: ");
+  // Serial.println(motorRightF);
 
-  int yourInputInt3 = readFile(SPIFFS, "/motorLeftB.txt").toInt();
-  // Serial.print("*** Your motorLeftB: ");
-  // Serial.println(yourInputInt3);
+  motorLeftB = readFile(SPIFFS, "/inputMotorLeftB.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftB: ");
+  // Serial.println(motorLeftB);
 
-  int yourInputInt4 = readFile(SPIFFS, "/motorRightB.txt").toInt();
-  // Serial.print("*** Your motorRightB: ");
-  // Serial.println(yourInputInt4);
-
-  motorLeftF = yourInputInt1;
-  motorRightF = yourInputInt2;
-  motorLeftB = yourInputInt3;
-  motorRightB = yourInputInt4;
+  motorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
+  // Serial.print("*** Your inputMotorRightB: ");
+  // Serial.println(motorRightB);
 
   buttonState = digitalRead(buttonPin);
   handleClick();
