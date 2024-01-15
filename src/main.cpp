@@ -113,14 +113,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <p>
-    <span class="sensor">Brightness Sensor Left</span> 
+    <span class="sensor">Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
-    <sup class="units">lx</sup>
   </p>
   <p>
-    <span class="sensor">Brightness Sensor Right</span> 
+    <span class="sensor">Brightness Sensor Right Value</span> 
     <span id="lightR">%LIGHTR%</span>
-    <sup class="units">lx</sup>
   </p>
   <p>
     <span class="sensor">Distance in front</span> 
