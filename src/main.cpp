@@ -79,7 +79,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
     h2 {font-size: 3.0rem;}
-    p {font-size: 3.0rem;}
+    p {font-size: 2.0rem;}
     body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
     .switch {position: relative; display: inline-block; width: 120px; height: 68px} 
     .switch input {display: none}
@@ -88,13 +88,14 @@ const char index_html[] PROGMEM = R"rawliteral(
     input:checked+.slider {background-color: #2196F3}
     input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
     .units {font-size: 1.2rem;}
-    .sensor-label {font-size: 1.5rem; vertical-align:middle; padding-bottom: 15px;}
+    .sensor {font-size: 1.5rem; padding-bottom: 15px;}
   </style>
 </head>
 <body>
   <h2>Robot Control Center</h2>
   %BUTTONPLACEHOLDER%
   <br><br><br><br>
+  <iframe style="display:none" name="hidden-form"></iframe>
 <form action="/get" target="hidden-form">
     motorLeftF (current value %motorLeftF%): <input type="number" name="motorLeftF">
     <input type="submit" value="Submit" onclick="submitMessage()">
@@ -112,11 +113,15 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <p>
-    <span class="sensor-label">Brightness</span> 
+    <span class="sensor">Brightness</span> 
     <span id="lightL">%LIGHTL%</span>
     <sup class="units">lx</sup>
   </p>
-  <iframe style="display:none" name="hidden-form"></iframe>
+  <p>
+    <span class="sensor">Distance in front</span> 
+    <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
+    <span class="sensor">cm</span>
+  </p>
 </body>
 <script>
 function toggleCheckbox(element) {
@@ -161,6 +166,17 @@ setInterval(function ( ) {
     }
   };
   xhttp.open("GET", "/lightL", true);
+  xhttp.send();
+}, 10000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("ultraSonicDistance").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/ultraSonicDistance", true);
   xhttp.send();
 }, 10000 ) ;
 </script>
@@ -224,6 +240,26 @@ String appControlState()
   return "";
 }
 
+float readUltrasonicDistanceInCm()
+{
+  // Clear the trigger
+  digitalWrite(triggerPin, LOW);
+  delayMicroseconds(2);
+
+  // Sets the trigger pin to HIGH state for 10 microseconds
+  digitalWrite(triggerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(triggerPin, LOW);
+
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  durationSoundWave = pulseIn(echoPin, HIGH);
+
+  // Calculate the distance
+  distanceCm = durationSoundWave * SOUND_SPEED / 2;
+
+  return distanceCm;
+}
+
 // Replaces placeholder with stored values
 String processor(const String &var)
 {
@@ -260,6 +296,13 @@ String processor(const String &var)
     Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
   }
+  else if (var == "ULTRADISTANCE")
+  {
+    distanceCm = readUltrasonicDistanceInCm();
+    Serial.println("distanceCm");
+    Serial.println(distanceCm);
+    return String(distanceCm);
+  }
   return String();
 }
 
@@ -289,29 +332,10 @@ void handleClick()
         onOff = LOW;
         Serial.println("-----------------------------long-------------------------------------");
       }
-      Serial.println(distanceCm);
+      Serial.println(readUltrasonicDistanceInCm());
     }
   }
   lastButtonState = buttonState;
-}
-
-// following function from https://www.electronicscuriosities.com/2020/10/ultrasonic-sensor-with-arduino-uno-with.html
-void readUltrasonicDistanceInCm()
-{
-  // Clear the trigger
-  digitalWrite(triggerPin, LOW);
-  delayMicroseconds(2);
-
-  // Sets the trigger pin to HIGH state for 10 microseconds
-  digitalWrite(triggerPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(triggerPin, LOW);
-
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  durationSoundWave = pulseIn(echoPin, HIGH);
-
-  // Calculate the distance
-  distanceCm = durationSoundWave * SOUND_SPEED / 2;
 }
 
 // Braitenberg-Vehicel 2 connection
@@ -334,8 +358,7 @@ void motorLightSensorConnection(String cross_or_parallel)
 // to react when an obstacle is nearby
 void handleMotor()
 {
-  readUltrasonicDistanceInCm();
-  if (onOff == 1 && distanceCm < 6)
+  if (onOff == 1 && readUltrasonicDistanceInCm() < 6)
   {
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
@@ -475,6 +498,10 @@ void setup()
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str());
+  });
+
+  server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str());
   });
 
   server.onNotFound(notFound);
