@@ -32,13 +32,13 @@ unsigned long durationButtonClick = 0;
 
 int analogLightValueLeft;
 int analogLightValueRight;
-const int thresholdLight = 600;
+const int thresholdLight = 1400;
 
 // Variables will change:
 int onOff = LOW;         // robot motor, led state: on or off
 int appControl = LOW;    // the current state: App-controlled or autonomous robot
-int buttonState = 0;     // the current reading from the input pin
-int lastButtonState = 0; // the previous reading from the input pin
+int buttonState = 0;     // the current reading from the input buttonPin
+int lastButtonState = 0; // the previous reading from the input buttonPin
 int cm = 0;              // distance cm
 int motorLeftF;          // motorLeftForward Value
 int motorRightF;         // motorRightForward Value
@@ -63,9 +63,9 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "inputMotorLeftF"; // inputMotorLeftF
+const char *PARAM_INT1 = "inputMotorLeftF";  // inputMotorLeftF
 const char *PARAM_INT2 = "inputMotorRightF"; // inputMotorRightF
-const char *PARAM_INT3 = "inputMotorLeftB"; // inputMotorLeftB
+const char *PARAM_INT3 = "inputMotorLeftB";  // inputMotorLeftB
 const char *PARAM_INT4 = "inputMotorRightB"; // inputMotorRightB
 
 const char *PARAM_INPUT_1 = "state"; // state
@@ -348,9 +348,9 @@ void handleClick()
         onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
         Serial.println("analogLightValueLeft");
-        Serial.print(analogLightValueLeft);
+        Serial.println(analogLightValueLeft);
         Serial.println("analogLightValueRight");
-        Serial.print(analogLightValueRight);
+        Serial.println(analogLightValueRight);
       }
       else
       { // long button press
@@ -371,14 +371,22 @@ void motorLightSensorConnection(String cross_or_parallel)
   analogWrite(motorRightPin2, 0);
   if (cross_or_parallel == "cross")
   {
-    analogWrite(motorLeftPin1, map(analogLightValueRight, 0, 1023, 0, 255));
-    analogWrite(motorRightPin1, map(analogLightValueLeft, 0, 1023, 0, 255));
+    analogWrite(motorLeftPin1, map(analogLightValueRight, thresholdLight, 4095, 70, 255));
+    analogWrite(motorRightPin1, map(analogLightValueLeft, thresholdLight, 4095, 70, 255));
   }
   else if (cross_or_parallel == "parallel")
   {
-    analogWrite(motorLeftPin1, map(analogLightValueLeft, 0, 1023, 0, 255));
-    analogWrite(motorRightPin1, map(analogLightValueRight, 0, 1023, 0, 255));
+    analogWrite(motorLeftPin1, map(analogLightValueLeft, thresholdLight, 4095, 70, 255));
+    analogWrite(motorRightPin1, map(analogLightValueRight, thresholdLight, 4095, 70, 255));
   }
+}
+
+void stopMotor()
+{
+  analogWrite(motorLeftPin1, 0);
+  analogWrite(motorLeftPin2, 0);
+  analogWrite(motorRightPin1, 0);
+  analogWrite(motorRightPin2, 0);
 }
 
 // to react when an obstacle is nearby
@@ -404,24 +412,28 @@ void handleMotor()
     analogWrite(motorLeftPin2, motorLeftB);
     analogWrite(motorRightPin1, motorRightF);
     analogWrite(motorRightPin2, motorRightB);
-  } else if (onOff == 1 && appControl == 0) {
-    // reads the input on analog pin (value between 0 and 1023)
+  }
+  else if (onOff == 1 && appControl == 0)
+  {
+    // reads the input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogRead(lightSensorPin1);
     analogLightValueRight = analogRead(lightSensorPin2);
-
-    analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 1023, 0, 255));
-    analogWrite(ledPinRight, map(analogLightValueRight, 0, 1023, 0, 255));
-    motorLightSensorConnection( "cross" ); //Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
+    analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 4095, 0, 255));
+    analogWrite(ledPinRight, map(analogLightValueRight, 0, 4095, 0, 255));
+    if ((analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight))
+    {
+      motorLightSensorConnection("cross"); // Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
+    }
+    else
+    {
+      stopMotor();
+    }
   }
   else
   {
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
-
-    analogWrite(motorLeftPin1, 0); // stop
-    analogWrite(motorLeftPin2, 0);
-    analogWrite(motorRightPin1, 0);
-    analogWrite(motorRightPin2, 0);
+    stopMotor();
   }
 }
 
@@ -522,17 +534,14 @@ void setup()
   server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(200, "text/plain", String(appControl).c_str()); });
 
-  server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str());
-  });
+  server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str()); });
 
-  server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str());
-  });
+  server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str()); });
 
-  server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str());
-  });
+  server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str()); });
 
   server.onNotFound(notFound);
   server.begin();
