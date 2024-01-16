@@ -94,22 +94,22 @@ const char index_html[] PROGMEM = R"rawliteral(
 <body>
   <h2>Robot Control Center</h2>
   %BUTTONPLACEHOLDER%
-  <br><br><br><br>
+  <br><br><br><br>  
   <iframe style="display:none" name="hidden-form"></iframe>
 <form action="/get" target="hidden-form">
-    MotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF">
+    inputMotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    MotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
+    inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    MotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
+    inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    MotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB">
+    inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <p>
@@ -392,6 +392,8 @@ void handleMotor()
 {
   if (onOff == 1 && readUltrasonicDistanceInCm() < 6)
   {
+    Serial.println("distanceCm");
+    Serial.println(readUltrasonicDistanceInCm());
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
@@ -480,7 +482,7 @@ void setup()
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/html", index_html, processor); });
 
-  // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
+  // Send a GET request to <ESP_IP>/get?INPUTNAME(daher zb inputMotorLeftF)=intWert
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request)
             {
     String inputMessage;
