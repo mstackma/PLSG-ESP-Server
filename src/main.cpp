@@ -35,15 +35,16 @@ int analogLightValueRight;
 const int thresholdLight = 1400;
 
 // Variables will change:
-int onOff = LOW;         // robot motor, led state: on or off
-int appControl = LOW;    // the current state: App-controlled or autonomous robot
-int buttonState = 0;     // the current reading from the input buttonPin
-int lastButtonState = 0; // the previous reading from the input buttonPin
-int cm = 0;              // distance cm
-int motorLeftF;          // motorLeftForward Value
-int motorRightF;         // motorRightForward Value
-int motorLeftB;          // motorLeftBackward Value
-int motorRightB;         // motorRightBackward Value
+int onOff = LOW;          // robot motor, led state: on/HIGH or off/LOW
+int appControl = LOW;     // the current state: App-controlled or autonomous robot
+int buttonState = 0;      // the current reading from the input buttonPin
+int lastButtonState = 0;  // the previous reading from the input buttonPin
+int cm = 0;               // distance cm
+int motorLeftF;           // motorLeftForward Value
+int motorRightF;          // motorRightForward Value
+int motorLeftB;           // motorLeftBackward Value
+int motorRightB;          // motorRightBackward Value
+String lightSensorStatus; // lightSensorStatus On Off
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -63,12 +64,12 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "inputMotorLeftF";  // inputMotorLeftF
-const char *PARAM_INT2 = "inputMotorRightF"; // inputMotorRightF
-const char *PARAM_INT3 = "inputMotorLeftB";  // inputMotorLeftB
-const char *PARAM_INT4 = "inputMotorRightB"; // inputMotorRightB
-
-const char *PARAM_INPUT_1 = "state"; // state
+const char *PARAM_INT1 = "inputMotorLeftF";                     // inputMotorLeftF
+const char *PARAM_INT2 = "inputMotorRightF";                    // inputMotorRightF
+const char *PARAM_INT3 = "inputMotorLeftB";                     // inputMotorLeftB
+const char *PARAM_INT4 = "inputMotorRightB";                    // inputMotorRightB
+const char *PARAM_WEB_BUTTON_LIGHTSENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
+const char *PARAM_INPUT_1 = "state";                            // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
@@ -112,6 +113,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
+  <form action="/get" target="hidden-form">
+    lightSensorStatus %lightSensorStatus% <input type="button" value="On/Off" onclick="buttonClick()">
+  </form><br>
   <p>
     <span class="sensor">Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
@@ -131,6 +135,18 @@ function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
   if(element.checked){ xhr.open("GET", "/update?state=1", true); }
   else { xhr.open("GET", "/update?state=0", true); }
+  xhr.send();
+}
+
+function buttonClick() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "/get?lightSensorStatus", true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState == 4 && xhr.status == 200) {
+      alert("Saved value to ESP SPIFFS");
+      setTimeout(function(){ document.location.reload(false); }, 500);
+    }
+  }
   xhr.send();
 }
 
@@ -294,6 +310,10 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/inputMotorRightB.txt");
   }
+  else if (var == "lightSensorStatus")
+  {
+    return readFile(SPIFFS, "/lightSensorStatus.txt");
+  }
   else if (var == "BUTTONPLACEHOLDER")
   {
     String buttons = "";
@@ -306,7 +326,7 @@ String processor(const String &var)
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogRead(lightSensorPin1);
-    Serial.println("analogLightValueLeft");
+    Serial.println("analogLightValueLeft 1");
     Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
   }
@@ -314,14 +334,14 @@ String processor(const String &var)
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueRight = analogRead(lightSensorPin2);
-    Serial.println("analogLightValueRight");
+    Serial.println("analogLightValueRight 1");
     Serial.println(analogLightValueRight);
     return String(analogLightValueRight);
   }
   else if (var == "ULTRADISTANCE")
   {
     float distanceCm = readUltrasonicDistanceInCm();
-    Serial.println("distanceCm");
+    Serial.println("distanceCm 1");
     Serial.println(distanceCm);
     return String(distanceCm);
   }
@@ -345,10 +365,12 @@ void handleClick()
         Serial.println(appControl);
         onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
-        Serial.println("analogLightValueLeft");
+        Serial.println("analogLightValueLeft 2");
         Serial.println(analogLightValueLeft);
-        Serial.println("analogLightValueRight");
+        Serial.println("analogLightValueRight 2");
         Serial.println(analogLightValueRight);
+        Serial.println("lightSensorStatus");
+        Serial.println(lightSensorStatus);
       }
       else
       { // long button press
@@ -392,7 +414,7 @@ void handleMotor()
 {
   if (onOff == 1 && readUltrasonicDistanceInCm() < 6)
   {
-    Serial.println("distanceCm");
+    Serial.println("distanceCm 2");
     Serial.println(readUltrasonicDistanceInCm());
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
@@ -491,25 +513,34 @@ void setup()
       inputMessage = request->getParam(PARAM_INT1)->value();
       writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
     }
-    // GET motorRightF
+    // GET inputMotorRightF
     else if (request->hasParam(PARAM_INT2)) {
       inputMessage = request->getParam(PARAM_INT2)->value();
       writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
-    // GET motorLeftB
+    // GET inputMotorLeftB
     else if (request->hasParam(PARAM_INT3)) {
       inputMessage = request->getParam(PARAM_INT3)->value();
       writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
     }
-    // GET motorRightB
+    // GET inputMotorRightB
     else if (request->hasParam(PARAM_INT4)) {
       inputMessage = request->getParam(PARAM_INT4)->value();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
+    } // GET lightSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHTSENSOR)) {
+      String currentStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
+      if (currentStatus == "On") {
+        inputMessage = "Off";
+      } else {
+        inputMessage = "On";
+      }
+      writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
     }
-    //Serial.println(inputMessage);
+    // Serial.println(inputMessage);
     request->send(200, "text/text", inputMessage); });
 
   // Send a GET request to <ESP_IP>/update?state=<inputMessage>
@@ -565,6 +596,8 @@ void loop()
   motorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
   // Serial.print("*** Your inputMotorRightB: ");
   // Serial.println(motorRightB);
+
+  lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
 
   buttonState = digitalRead(buttonPin);
   handleClick();
