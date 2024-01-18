@@ -35,17 +35,18 @@ int analogLightValueRight;
 const int thresholdLight = 1400;
 
 // Variables will change:
-int onOff = LOW;               // robot motor, led state: on/HIGH or off/LOW
-int appControl = LOW;          // the current state: App-controlled or autonomous robot
-int buttonState = 0;           // the current reading from the input buttonPin
-int lastButtonState = 0;       // the previous reading from the input buttonPin
-int cm = 0;                    // distance cm
-int motorLeftF;                // motorLeftForward Value
-int motorRightF;               // motorRightForward Value
-int motorLeftB;                // motorLeftBackward Value
-int motorRightB;               // motorRightBackward Value
-String lightSensorStatus;      // lightSensorStatus On Off
-String ultraSonicSensorStatus; // ultraSonicSensorStatus On Off
+int onOff = LOW;                        // robot motor, led state: on/HIGH or off/LOW
+int appControl = LOW;                   // the current state: App-controlled or autonomous robot
+int buttonState = 0;                    // the current reading from the input buttonPin
+int lastButtonState = 0;                // the previous reading from the input buttonPin
+int cm = 0;                             // distance cm
+int motorLeftF;                         // motorLeftForward Value
+int motorRightF;                        // motorRightForward Value
+int motorLeftB;                         // motorLeftBackward Value
+int motorRightB;                        // motorRightBackward Value
+String lightSensorStatus;               // lightSensorStatus On Off
+String ultraSonicSensorStatus;          // ultraSonicSensorStatus On Off
+String motorSensorConnection = "cross"; // sensorMotorConnection "cross" or "parallel"
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -71,6 +72,7 @@ const char *PARAM_INT3 = "inputMotorLeftB";                                // in
 const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
 const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
+const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection";         // motorSensorConnection "cross" or "parallel"
 const char *PARAM_INPUT_1 = "state";                                       // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
@@ -97,7 +99,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 <body>
   <h2>Robot Control Center</h2>
   %BUTTONPLACEHOLDER%
-  <br><br><br><br>  
+  <br><br><br>  
   <iframe style="display:none" name="hidden-form"></iframe>
 <form action="/get" target="hidden-form">
     inputMotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF">
@@ -121,6 +123,9 @@ const char index_html[] PROGMEM = R"rawliteral(
   <form action="/get" target="hidden-form">
     ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" id="ultraSonicSensor">
   </form><br>
+  <form action="/get" target="hidden-form">
+    motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
+  </form><br>
   <p>
     <span class="sensor">Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
@@ -138,6 +143,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 <script>
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
 document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
+document.getElementById("connection").addEventListener("click", function() { buttonClick("motorSensorConnection=1");}, false);
 
 function buttonClick(sensorTypeStatus) {
   var xhr = new XMLHttpRequest();
@@ -332,6 +338,10 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
   }
+  else if (var == "motorSensorConnection")
+  {
+    return readFile(SPIFFS, "/motorSensorConnection.txt");
+  }
   else if (var == "BUTTONPLACEHOLDER")
   {
     String buttons = "";
@@ -391,6 +401,8 @@ void handleClick()
         Serial.println(lightSensorStatus);
         Serial.println("ultraSonicSensorStatus");
         Serial.println(ultraSonicSensorStatus);
+        Serial.println("motorSensorConnection");
+        Serial.println(motorSensorConnection);
       }
       else
       { // long button press
@@ -432,9 +444,10 @@ void stopMotor()
 // to react when an obstacle is nearby
 void handleMotor()
 {
-  if (onOff == 1 && readUltrasonicDistanceInCm() < 6)
+  float distanceCm = readUltrasonicDistanceInCm();
+  if (onOff == 1 && distanceCm < 6 && distanceCm > 0 && ultraSonicSensorStatus == "On")
   {
-    Serial.println("distanceCm < 6");
+    Serial.println(distanceCm);
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
@@ -463,7 +476,7 @@ void handleMotor()
     analogWrite(ledPinRight, map(analogLightValueRight, 0, 4095, 0, 255));
     if ((analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight))
     {
-      motorLightSensorConnection("cross"); // Vorwärts entsprechend der Helligkeit und Sensor-Motor-Verbindung
+      motorLightSensorConnection(motorSensorConnection); // Forward according to brightness and sensor-motor connection
     }
     else
     {
@@ -476,6 +489,29 @@ void handleMotor()
     analogWrite(ledPinRight, 0);
     stopMotor();
   }
+}
+
+void getStoredSPIFFSValues() {
+  // To access your stored values on motor..
+  motorLeftF = readFile(SPIFFS, "/inputMotorLeftF.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftF: ");
+  // Serial.println(motorLeftF);
+
+  motorRightF = readFile(SPIFFS, "/inputMotorRightF.txt").toInt();
+  // Serial.print("*** Your inputMotorRightF: ");
+  // Serial.println(motorRightF);
+
+  motorLeftB = readFile(SPIFFS, "/inputMotorLeftB.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftB: ");
+  // Serial.println(motorLeftB);
+
+  motorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
+  // Serial.print("*** Your inputMotorRightB: ");
+  // Serial.println(motorRightB);
+
+  lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
+  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+  motorSensorConnection = readFile(SPIFFS, "/motorSensorConnection.txt");
 }
 
 void setup()
@@ -519,6 +555,8 @@ void setup()
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
+  getStoredSPIFFSValues();
+
   // Send web page with input fields to client
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/html", index_html, processor); });
@@ -530,21 +568,25 @@ void setup()
     // GET inputMotorLeftF
     if (request->hasParam(PARAM_INT1)) {
       inputMessage = request->getParam(PARAM_INT1)->value();
+      motorLeftF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
     }
     // GET inputMotorRightF
     else if (request->hasParam(PARAM_INT2)) {
       inputMessage = request->getParam(PARAM_INT2)->value();
+      motorRightF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
     // GET inputMotorLeftB
     else if (request->hasParam(PARAM_INT3)) {
       inputMessage = request->getParam(PARAM_INT3)->value();
+      motorLeftB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
     }
     // GET inputMotorRightB
     else if (request->hasParam(PARAM_INT4)) {
       inputMessage = request->getParam(PARAM_INT4)->value();
+      motorRightB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
     } // GET lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
@@ -554,6 +596,7 @@ void setup()
       } else {
         inputMessage = "On";
       }
+      lightSensorStatus = inputMessage;
       writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
     } // GET ultraSonicSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
@@ -563,7 +606,18 @@ void setup()
       } else {
         inputMessage = "On";
       }
+      ultraSonicSensorStatus = inputMessage;
       writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
+    }
+    else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE)) {
+      String currentStatus = readFile(SPIFFS, "/motorSensorConnection.txt");
+      if (currentStatus == "cross") {
+        inputMessage = "parallel";
+      } else {
+        inputMessage = "cross";
+      }
+      motorSensorConnection = inputMessage;
+      writeFile(SPIFFS, "/motorSensorConnection.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -591,7 +645,7 @@ void setup()
 
   // Send a GET request to <ESP_IP>/state
   server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(200, "text/plain", String(appControl).c_str()); });
+            {request->send(200, "text/plain", String(appControl).c_str()); });
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin1)).c_str()); });
@@ -608,29 +662,8 @@ void setup()
 
 void loop()
 {
-  // To access your stored values on motor..
-  motorLeftF = readFile(SPIFFS, "/inputMotorLeftF.txt").toInt();
-  // Serial.print("*** Your inputMotorLeftF: ");
-  // Serial.println(motorLeftF);
-
-  motorRightF = readFile(SPIFFS, "/inputMotorRightF.txt").toInt();
-  // Serial.print("*** Your inputMotorRightF: ");
-  // Serial.println(motorRightF);
-
-  motorLeftB = readFile(SPIFFS, "/inputMotorLeftB.txt").toInt();
-  // Serial.print("*** Your inputMotorLeftB: ");
-  // Serial.println(motorLeftB);
-
-  motorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
-  // Serial.print("*** Your inputMotorRightB: ");
-  // Serial.println(motorRightB);
-
-  lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
-  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
-
+  //getStoredSPIFFSValues();
   buttonState = digitalRead(buttonPin);
   handleClick();
   handleMotor();
-
-  // delay(5000);
 }
