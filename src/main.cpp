@@ -35,16 +35,16 @@ int analogLightValueRight;
 const int thresholdLight = 1400;
 
 // Variables will change:
-int onOff = LOW;          // robot motor, led state: on/HIGH or off/LOW
-int appControl = LOW;     // the current state: App-controlled or autonomous robot
-int buttonState = 0;      // the current reading from the input buttonPin
-int lastButtonState = 0;  // the previous reading from the input buttonPin
-int cm = 0;               // distance cm
-int motorLeftF;           // motorLeftForward Value
-int motorRightF;          // motorRightForward Value
-int motorLeftB;           // motorLeftBackward Value
-int motorRightB;          // motorRightBackward Value
-String lightSensorStatus; // lightSensorStatus On Off
+int onOff = LOW;               // robot motor, led state: on/HIGH or off/LOW
+int appControl = LOW;          // the current state: App-controlled or autonomous robot
+int buttonState = 0;           // the current reading from the input buttonPin
+int lastButtonState = 0;       // the previous reading from the input buttonPin
+int cm = 0;                    // distance cm
+int motorLeftF;                // motorLeftForward Value
+int motorRightF;               // motorRightForward Value
+int motorLeftB;                // motorLeftBackward Value
+int motorRightB;               // motorRightBackward Value
+String lightSensorStatus;      // lightSensorStatus On Off
 String ultraSonicSensorStatus; // ultraSonicSensorStatus On Off
 
 #ifdef ESP32
@@ -65,13 +65,13 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "inputMotorLeftF";                     // inputMotorLeftF
-const char *PARAM_INT2 = "inputMotorRightF";                    // inputMotorRightF
-const char *PARAM_INT3 = "inputMotorLeftB";                     // inputMotorLeftB
-const char *PARAM_INT4 = "inputMotorRightB";                    // inputMotorRightB
-const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
+const char *PARAM_INT1 = "inputMotorLeftF";                                // inputMotorLeftF
+const char *PARAM_INT2 = "inputMotorRightF";                               // inputMotorRightF
+const char *PARAM_INT3 = "inputMotorLeftB";                                // inputMotorLeftB
+const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
+const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
-const char *PARAM_INPUT_1 = "state";                            // state
+const char *PARAM_INPUT_1 = "state";                                       // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
@@ -139,13 +139,6 @@ const char index_html[] PROGMEM = R"rawliteral(
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
 document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
 
-function toggleCheckbox(element) {
-  var xhr = new XMLHttpRequest();
-  if(element.checked){ xhr.open("GET", "/update?state=1", true); }
-  else { xhr.open("GET", "/update?state=0", true); }
-  xhr.send();
-}
-
 function buttonClick(sensorTypeStatus) {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "/get?" + sensorTypeStatus, true);
@@ -155,6 +148,13 @@ function buttonClick(sensorTypeStatus) {
       setTimeout(function(){ document.location.reload(false); }, 500);
     }
   }
+  xhr.send();
+}
+
+function toggleCheckbox(element) {
+  var xhr = new XMLHttpRequest();
+  if(element.checked){ xhr.open("GET", "/update?state=1", true); }
+  else { xhr.open("GET", "/update?state=0", true); }
   xhr.send();
 }
 
@@ -185,38 +185,23 @@ function submitMessage() {
       setTimeout(function(){ document.location.reload(false); }, 500);   
     }
 
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("lightL").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/lightL", true);
-  xhttp.send();
-}, 10000 ) ;
+fetchData("lightL", "/lightL");
+fetchData("lightR", "/lightR");
+fetchData("ultraSonicDistance", "/ultraSonicDistance");
 
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("lightR").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/lightR", true);
-  xhttp.send();
-}, 10000 ) ;
+function fetchData(elementId, url) {
+  setInterval(function () {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        document.getElementById(elementId).innerHTML = this.responseText;
+      }
+    };
+    xhttp.open("GET", url, true);
+    xhttp.send();
+  }, 10000);
+}
 
-setInterval(function ( ) {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("ultraSonicDistance").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/ultraSonicDistance", true);
-  xhttp.send();
-}, 10000 ) ;
 </script>
 </html>)rawliteral";
 
