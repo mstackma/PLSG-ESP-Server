@@ -116,10 +116,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" onclick="buttonClick("lightSensorStatus")">
+    lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" id="lightSensor">
   </form><br>
   <form action="/get" target="hidden-form">
-    ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" onclick="buttonClick("ultraSonicSensorStatus")">
+    ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" id="ultraSonicSensor">
   </form><br>
   <p>
     <span class="sensor">Brightness Sensor Left Value</span> 
@@ -136,6 +136,9 @@ const char index_html[] PROGMEM = R"rawliteral(
   </p>
 </body>
 <script>
+document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
+document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
+
 function toggleCheckbox(element) {
   var xhr = new XMLHttpRequest();
   if(element.checked){ xhr.open("GET", "/update?state=1", true); }
