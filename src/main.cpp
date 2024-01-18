@@ -263,23 +263,44 @@ String appControlState()
   return "";
 }
 
+int analogReadLightSensor(int sensorPin)
+{
+  int sensorData;
+  if (lightSensorStatus == "On")
+  {
+    sensorData = analogRead(sensorPin);
+  }
+  else
+  {
+    sensorData = 0;
+  }
+  return sensorData;
+}
+
 float readUltrasonicDistanceInCm()
 {
-  // Clear the trigger
-  digitalWrite(triggerPin, LOW);
-  delayMicroseconds(2);
+  float distanceCm;
+  if (ultraSonicSensorStatus == "On")
+  {
+    // Clear the trigger
+    digitalWrite(triggerPin, LOW);
+    delayMicroseconds(2);
 
-  // Sets the trigger pin to HIGH state for 10 microseconds
-  digitalWrite(triggerPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(triggerPin, LOW);
+    // Sets the trigger pin to HIGH state for 10 microseconds
+    digitalWrite(triggerPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(triggerPin, LOW);
 
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  durationSoundWave = pulseIn(echoPin, HIGH);
+    // Reads the echoPin, returns the sound wave travel time in microseconds
+    durationSoundWave = pulseIn(echoPin, HIGH);
 
-  // Calculate the distance
-  float distanceCm = durationSoundWave * SOUND_SPEED / 2;
-
+    // Calculate the distance
+    distanceCm = durationSoundWave * SOUND_SPEED / 2;
+  }
+  else
+  {
+    distanceCm = 0;
+  }
   return distanceCm;
 }
 
@@ -322,7 +343,7 @@ String processor(const String &var)
   else if (var == "LIGHTL")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueLeft = analogRead(lightSensorPin1);
+    analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
     Serial.println("analogLightValueLeft 1");
     Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
@@ -330,7 +351,7 @@ String processor(const String &var)
   else if (var == "LIGHTR")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueRight = analogRead(lightSensorPin2);
+    analogLightValueRight = analogReadLightSensor(lightSensorPin2);
     Serial.println("analogLightValueRight 1");
     Serial.println(analogLightValueRight);
     return String(analogLightValueRight);
@@ -413,8 +434,7 @@ void handleMotor()
 {
   if (onOff == 1 && readUltrasonicDistanceInCm() < 6)
   {
-    Serial.println("distanceCm 2");
-    Serial.println(readUltrasonicDistanceInCm());
+    Serial.println("distanceCm < 6");
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
@@ -437,8 +457,8 @@ void handleMotor()
   else if (onOff == 1 && appControl == 0)
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueLeft = analogRead(lightSensorPin1);
-    analogLightValueRight = analogRead(lightSensorPin2);
+    analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
+    analogLightValueRight = analogReadLightSensor(lightSensorPin2);
     analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 4095, 0, 255));
     analogWrite(ledPinRight, map(analogLightValueRight, 0, 4095, 0, 255));
     if ((analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight))
@@ -574,10 +594,10 @@ void setup()
             { request->send(200, "text/plain", String(appControl).c_str()); });
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin1)).c_str()); });
 
   server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin2)).c_str()); });
 
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str()); });
