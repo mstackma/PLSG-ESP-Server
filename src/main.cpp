@@ -45,6 +45,7 @@ int motorRightF;          // motorRightForward Value
 int motorLeftB;           // motorLeftBackward Value
 int motorRightB;          // motorRightBackward Value
 String lightSensorStatus; // lightSensorStatus On Off
+String ultraSonicSensorStatus; // ultraSonicSensorStatus On Off
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -68,7 +69,8 @@ const char *PARAM_INT1 = "inputMotorLeftF";                     // inputMotorLef
 const char *PARAM_INT2 = "inputMotorRightF";                    // inputMotorRightF
 const char *PARAM_INT3 = "inputMotorLeftB";                     // inputMotorLeftB
 const char *PARAM_INT4 = "inputMotorRightB";                    // inputMotorRightB
-const char *PARAM_WEB_BUTTON_LIGHTSENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
+const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
+const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 const char *PARAM_INPUT_1 = "state";                            // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
@@ -114,7 +116,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    lightSensorStatus %lightSensorStatus% <input type="button" value="On/Off" onclick="buttonClick()">
+    lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" onclick="buttonClick("lightSensorStatus")">
+  </form><br>
+  <form action="/get" target="hidden-form">
+    ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" onclick="buttonClick("ultraSonicSensorStatus")">
   </form><br>
   <p>
     <span class="sensor">Brightness Sensor Left Value</span> 
@@ -138,9 +143,9 @@ function toggleCheckbox(element) {
   xhr.send();
 }
 
-function buttonClick() {
+function buttonClick(sensorTypeStatus) {
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "/get?lightSensorStatus", true);
+  xhr.open("GET", "/get?" + sensorTypeStatus, true);
   xhr.onreadystatechange = function () {
     if (xhr.readyState == 4 && xhr.status == 200) {
       alert("Saved value to ESP SPIFFS");
@@ -314,6 +319,10 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/lightSensorStatus.txt");
   }
+  else if (var == "ultraSonicSensorStatus")
+  {
+    return readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+  }
   else if (var == "BUTTONPLACEHOLDER")
   {
     String buttons = "";
@@ -371,6 +380,8 @@ void handleClick()
         Serial.println(analogLightValueRight);
         Serial.println("lightSensorStatus");
         Serial.println(lightSensorStatus);
+        Serial.println("ultraSonicSensorStatus");
+        Serial.println(ultraSonicSensorStatus);
       }
       else
       { // long button press
@@ -528,7 +539,7 @@ void setup()
       inputMessage = request->getParam(PARAM_INT4)->value();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
     } // GET lightSensorStatus
-    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHTSENSOR)) {
+    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
       if (currentStatus == "On") {
         inputMessage = "Off";
@@ -536,6 +547,15 @@ void setup()
         inputMessage = "On";
       }
       writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
+    } // GET ultraSonicSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
+      String currentStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+      if (currentStatus == "On") {
+        inputMessage = "Off";
+      } else {
+        inputMessage = "On";
+      }
+      writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
     }
     else {
       inputMessage = "No message sent";
@@ -598,6 +618,7 @@ void loop()
   // Serial.println(motorRightB);
 
   lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
+  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
 
   buttonState = digitalRead(buttonPin);
   handleClick();
