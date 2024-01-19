@@ -77,7 +77,7 @@ const char *PARAM_INT4 = "inputMotorRightB";                               // in
 const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection";     // motorSensorConnection "cross" or "parallel"
-const char *PARAM_INPUT_1 = "state";                                       // state
+const char *PARAM_BUTTON_APPCONTROL = "state";                             // appControl state (web and real button)
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
@@ -637,10 +637,10 @@ void setup()
             {
     String inputMessage;
     String inputParam;
-    // GET input1 value on <ESP_IP>/update?state=<inputMessage>
-    if (request->hasParam(PARAM_INPUT_1)) {
-      inputMessage = request->getParam(PARAM_INPUT_1)->value();
-      inputParam = PARAM_INPUT_1;
+    // GET appControl state value on <ESP_IP>/update?state=<inputMessage>
+    if (request->hasParam(PARAM_BUTTON_APPCONTROL)) {
+      inputMessage = request->getParam(PARAM_BUTTON_APPCONTROL)->value();
+      inputParam = PARAM_BUTTON_APPCONTROL;
       onOff = HIGH;
       appControl = !appControl;
     }
