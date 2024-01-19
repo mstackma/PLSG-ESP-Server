@@ -44,6 +44,10 @@ int motorLeftF;                         // motorLeftForward Value
 int motorRightF;                        // motorRightForward Value
 int motorLeftB;                         // motorLeftBackward Value
 int motorRightB;                        // motorRightBackward Value
+int inputMotorLeftF;                    // App Input motorLeftForward Value
+int inputMotorRightF;                   // App Input motorRightForward Value
+int inputMotorLeftB;                    // App Input motorLeftBackward Value
+int inputMotorRightB;                   // App Input motorRightBackward Value
 String lightSensorStatus;               // lightSensorStatus On Off
 String ultraSonicSensorStatus;          // ultraSonicSensorStatus On Off
 String motorSensorConnection = "cross"; // sensorMotorConnection "cross" or "parallel"
@@ -72,7 +76,7 @@ const char *PARAM_INT3 = "inputMotorLeftB";                                // in
 const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
 const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
-const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection";         // motorSensorConnection "cross" or "parallel"
+const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection";     // motorSensorConnection "cross" or "parallel"
 const char *PARAM_INPUT_1 = "state";                                       // state
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
@@ -354,7 +358,7 @@ String processor(const String &var)
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
-    Serial.println("analogLightValueLeft 1");
+    Serial.println("Processor: analogLightValueLeft");
     Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
   }
@@ -362,14 +366,14 @@ String processor(const String &var)
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueRight = analogReadLightSensor(lightSensorPin2);
-    Serial.println("analogLightValueRight 1");
+    Serial.println("Processor: analogLightValueRight 1");
     Serial.println(analogLightValueRight);
     return String(analogLightValueRight);
   }
   else if (var == "ULTRADISTANCE")
   {
     float distanceCm = readUltrasonicDistanceInCm();
-    Serial.println("distanceCm 1");
+    Serial.println("Processor: distanceCm");
     Serial.println(distanceCm);
     return String(distanceCm);
   }
@@ -393,10 +397,6 @@ void handleClick()
         Serial.println(appControl);
         onOff = HIGH;
         Serial.println("-----------------------------short------------------------------------");
-        Serial.println("analogLightValueLeft 2");
-        Serial.println(analogLightValueLeft);
-        Serial.println("analogLightValueRight 2");
-        Serial.println(analogLightValueRight);
         Serial.println("lightSensorStatus");
         Serial.println(lightSensorStatus);
         Serial.println("ultraSonicSensorStatus");
@@ -410,108 +410,115 @@ void handleClick()
         onOff = LOW;
         Serial.println("-----------------------------long-------------------------------------");
       }
-      Serial.println(readUltrasonicDistanceInCm());
     }
   }
   lastButtonState = buttonState;
 }
 
-// Braitenberg-Vehicel 2 connection
-void motorLightSensorConnection(String cross_or_parallel)
+// handle the motor depending on the motor light sensor connection
+void braitenbergVehicleTwo(String cross_or_parallel)
 {
-  analogWrite(motorLeftPin2, 0);
-  analogWrite(motorRightPin2, 0);
+  motorLeftB = 0;
+  motorRightB = 0;
   if (cross_or_parallel == "cross")
   {
-    analogWrite(motorLeftPin1, map(analogLightValueRight, thresholdLight, 4095, 70, 255));
-    analogWrite(motorRightPin1, map(analogLightValueLeft, thresholdLight, 4095, 70, 255));
+    motorLeftF = map(analogLightValueRight, thresholdLight, 4095, 70, 255);
+    motorRightF = map(analogLightValueLeft, thresholdLight, 4095, 70, 255);
   }
   else if (cross_or_parallel == "parallel")
   {
-    analogWrite(motorLeftPin1, map(analogLightValueLeft, thresholdLight, 4095, 70, 255));
-    analogWrite(motorRightPin1, map(analogLightValueRight, thresholdLight, 4095, 70, 255));
+    motorLeftF = map(analogLightValueLeft, thresholdLight, 4095, 70, 255);
+    motorRightF = map(analogLightValueRight, thresholdLight, 4095, 70, 255);
   }
 }
 
 void stopMotor()
 {
-  analogWrite(motorLeftPin1, 0);
-  analogWrite(motorLeftPin2, 0);
-  analogWrite(motorRightPin1, 0);
-  analogWrite(motorRightPin2, 0);
+  motorLeftF = 0;
+  motorLeftB = 0;
+  motorRightF = 0;
+  motorRightB = 0;
 }
 
-// to react when an obstacle is nearby
-void handleMotor()
+void getStoredSPIFFSValues()
+{
+  // Access stored values on motor, light sensor status, ultrasonic sensor status
+  inputMotorLeftF = readFile(SPIFFS, "/inputMotorLeftF.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftF: ");
+  // Serial.println(inputMotorLeftF);
+
+  inputMotorLeftB = readFile(SPIFFS, "/inputMotorLeftB.txt").toInt();
+  // Serial.print("*** Your inputMotorLeftB: ");
+  // Serial.println(inputMotorLeftB);
+
+  inputMotorRightF = readFile(SPIFFS, "/inputMotorRightF.txt").toInt();
+  // Serial.print("*** Your inputMotorRightF: ");
+  // Serial.println(inputMotorRightF);
+
+  inputMotorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
+  // Serial.print("*** Your inputMotorRightB: ");
+  // Serial.println(inputMotorRightB);
+
+  lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
+  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+  motorSensorConnection = readFile(SPIFFS, "/motorSensorConnection.txt");
+}
+
+void handleMotorLed()
 {
   float distanceCm = readUltrasonicDistanceInCm();
   if (onOff == 1 && distanceCm < 6 && distanceCm > 0 && ultraSonicSensorStatus == "On")
   {
+    // !!! Implement here: Send signal: "Obstacle !!!" !!!
+
     Serial.println(distanceCm);
     analogWrite(ledPinLeft, 0);
     analogWrite(ledPinRight, 0);
 
-    analogWrite(motorLeftPin1, 0); // backwards
+    analogWrite(motorLeftPin1, 0);
     analogWrite(motorLeftPin2, 200);
     analogWrite(motorRightPin1, 0);
     analogWrite(motorRightPin2, 200);
-    delay(2000);
+    delay(2000); // 2 seconds backwards
+
+    getStoredSPIFFSValues();
   }
   if (onOff == 1 && appControl == 1)
   {
-    analogWrite(ledPinLeft, motorLeftF);
-    analogWrite(ledPinRight, motorRightF);
-
-    analogWrite(motorLeftPin1, motorLeftF);
-    analogWrite(motorLeftPin2, motorLeftB);
-    analogWrite(motorRightPin1, motorRightF);
-    analogWrite(motorRightPin2, motorRightB);
+    motorLeftF = inputMotorLeftF;
+    motorLeftB = inputMotorLeftB;
+    motorRightF = inputMotorRightF;
+    motorRightB = inputMotorRightB;
   }
   else if (onOff == 1 && appControl == 0)
   {
-    // reads the input on analog pin (value between 0 and 4095)
+    // reads the light input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
     analogLightValueRight = analogReadLightSensor(lightSensorPin2);
-    analogWrite(ledPinLeft, map(analogLightValueLeft, 0, 4095, 0, 255));
-    analogWrite(ledPinRight, map(analogLightValueRight, 0, 4095, 0, 255));
-    if ((analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight))
+
+    if (analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight)
     {
-      motorLightSensorConnection(motorSensorConnection); // Forward according to brightness and sensor-motor connection
+      braitenbergVehicleTwo(motorSensorConnection); // Forward according to brightness and sensor-motor connection
     }
     else
     {
       stopMotor();
     }
   }
-  else
+  else if (onOff == 0)
   {
-    analogWrite(ledPinLeft, 0);
-    analogWrite(ledPinRight, 0);
     stopMotor();
   }
 }
 
-void getStoredSPIFFSValues() {
-  // To access your stored values on motor..
-  motorLeftF = readFile(SPIFFS, "/inputMotorLeftF.txt").toInt();
-  // Serial.print("*** Your inputMotorLeftF: ");
-  // Serial.println(motorLeftF);
-
-  motorRightF = readFile(SPIFFS, "/inputMotorRightF.txt").toInt();
-  // Serial.print("*** Your inputMotorRightF: ");
-  // Serial.println(motorRightF);
-
-  motorLeftB = readFile(SPIFFS, "/inputMotorLeftB.txt").toInt();
-  // Serial.print("*** Your inputMotorLeftB: ");
-  // Serial.println(motorLeftB);
-
-  motorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
-  // Serial.print("*** Your inputMotorRightB: ");
-  // Serial.println(motorRightB);
-
-  lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
-  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
-  motorSensorConnection = readFile(SPIFFS, "/motorSensorConnection.txt");
+void updateMotorLed()
+{
+  analogWrite(ledPinLeft, motorLeftF);
+  analogWrite(ledPinRight, motorRightF);
+  analogWrite(motorLeftPin1, motorLeftF);
+  analogWrite(motorLeftPin2, motorLeftB);
+  analogWrite(motorRightPin1, motorRightF);
+  analogWrite(motorRightPin2, motorRightB);
 }
 
 void setup()
@@ -568,25 +575,25 @@ void setup()
     // GET inputMotorLeftF
     if (request->hasParam(PARAM_INT1)) {
       inputMessage = request->getParam(PARAM_INT1)->value();
-      motorLeftF = inputMessage.toInt();
+      inputMotorLeftF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
-    }
-    // GET inputMotorRightF
-    else if (request->hasParam(PARAM_INT2)) {
-      inputMessage = request->getParam(PARAM_INT2)->value();
-      motorRightF = inputMessage.toInt();
-      writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
     // GET inputMotorLeftB
     else if (request->hasParam(PARAM_INT3)) {
       inputMessage = request->getParam(PARAM_INT3)->value();
-      motorLeftB = inputMessage.toInt();
+      inputMotorLeftB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
+    }
+    // GET inputMotorRightF
+    else if (request->hasParam(PARAM_INT2)) {
+      inputMessage = request->getParam(PARAM_INT2)->value();
+      inputMotorRightF = inputMessage.toInt();
+      writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
     // GET inputMotorRightB
     else if (request->hasParam(PARAM_INT4)) {
       inputMessage = request->getParam(PARAM_INT4)->value();
-      motorRightB = inputMessage.toInt();
+      inputMotorRightB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
     } // GET lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
@@ -608,7 +615,7 @@ void setup()
       }
       ultraSonicSensorStatus = inputMessage;
       writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
-    }
+    } // GET motorSensorConnection
     else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE)) {
       String currentStatus = readFile(SPIFFS, "/motorSensorConnection.txt");
       if (currentStatus == "cross") {
@@ -645,7 +652,7 @@ void setup()
 
   // Send a GET request to <ESP_IP>/state
   server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request)
-            {request->send(200, "text/plain", String(appControl).c_str()); });
+            { request->send(200, "text/plain", String(appControl).c_str()); });
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin1)).c_str()); });
@@ -662,8 +669,8 @@ void setup()
 
 void loop()
 {
-  //getStoredSPIFFSValues();
   buttonState = digitalRead(buttonPin);
   handleClick();
-  handleMotor();
+  handleMotorLed();
+  updateMotorLed();
 }
