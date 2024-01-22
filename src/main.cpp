@@ -110,19 +110,19 @@ const char index_html[] PROGMEM = R"rawliteral(
   <br><br><br>  
   <iframe style="display:none" name="hidden-form"></iframe>
 <form action="/get" target="hidden-form">
-    inputMotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF">
+    inputMotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
+    inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
+    inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB">
+    inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
