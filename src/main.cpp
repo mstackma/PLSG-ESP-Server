@@ -152,7 +152,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body>
 <script>
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
-<!-- document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false); -->
+// document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
 document.getElementById("obstacleSensor").addEventListener("click", function() { buttonClick("obstacleSensorStatus=1");}, false);
 document.getElementById("connection").addEventListener("click", function() { buttonClick("motorSensorConnection=1");}, false);
 
