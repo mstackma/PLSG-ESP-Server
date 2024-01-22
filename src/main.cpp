@@ -96,8 +96,6 @@ const char index_html[] PROGMEM = R"rawliteral(
     .slider:before {position: absolute; content: ""; height: 52px; width: 52px; left: 8px; bottom: 8px; background-color: #fff; -webkit-transition: .4s; transition: .4s; border-radius: 68px}
     input:checked+.slider {background-color: #2196F3}
     input:checked+.slider:before {-webkit-transform: translateX(52px); -ms-transform: translateX(52px); transform: translateX(52px)}
-    .units {font-size: 1.2rem;}
-    .sensor {font-size: 1.5rem; padding-bottom: 15px;}
   </style>
 </head>
 <body>
@@ -110,11 +108,11 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
+    inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
-    inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB">
+    inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/get" target="hidden-form">
@@ -130,19 +128,15 @@ const char index_html[] PROGMEM = R"rawliteral(
   <form action="/get" target="hidden-form">
     motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
   </form><br>
-  <p>
-    <span class="sensor">Brightness Sensor Left Value</span> 
+    <span>Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
-  </p>
-  <p>
-    <span class="sensor">Brightness Sensor Right Value</span> 
+  <br><br>
+    <span>Brightness Sensor Right Value</span> 
     <span id="lightR">%LIGHTR%</span>
-  </p>
-  <p>
-    <span class="sensor">Distance in front</span> 
+	<br><br>
+    <span>Distance in front</span> 
     <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
-    <span class="sensor">cm</span>
-  </p>
+    <span>cm</span>
 </body>
 <script>
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
@@ -191,7 +185,7 @@ setInterval(function ( ) {
 }, 1000 ) ;
 
 function submitMessage() {
-      alert("Saved value to ESP SPIFFS");
+      // alert("Saved value to ESP SPIFFS");
       setTimeout(function(){ document.location.reload(false); }, 500);   
     }
 
@@ -358,23 +352,17 @@ String processor(const String &var)
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
-    Serial.println("Processor: analogLightValueLeft");
-    Serial.println(analogLightValueLeft);
     return String(analogLightValueLeft);
   }
   else if (var == "LIGHTR")
   {
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueRight = analogReadLightSensor(lightSensorPin2);
-    Serial.println("Processor: analogLightValueRight 1");
-    Serial.println(analogLightValueRight);
     return String(analogLightValueRight);
   }
   else if (var == "ULTRADISTANCE")
   {
     float distanceCm = readUltrasonicDistanceInCm();
-    Serial.println("Processor: distanceCm");
-    Serial.println(distanceCm);
     return String(distanceCm);
   }
   return String();
@@ -562,8 +550,6 @@ void setup()
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  getStoredSPIFFSValues();
-
   // Send web page with input fields to client
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/html", index_html, processor); });
@@ -665,6 +651,8 @@ void setup()
 
   server.onNotFound(notFound);
   server.begin();
+
+  getStoredSPIFFSValues();
 }
 
 void loop()
