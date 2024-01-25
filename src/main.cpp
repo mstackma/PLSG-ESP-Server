@@ -33,6 +33,8 @@ long durationSoundWave;
 unsigned long startTime = 0;
 unsigned long durationButtonClick = 0;
 
+volatile unsigned long timeoutTimer = millis();
+
 int analogLightValueLeft;
 int analogLightValueRight;
 const int thresholdLight = 1400;
@@ -139,6 +141,9 @@ const char index_html[] PROGMEM = R"rawliteral(
   <form action="/get" target="hidden-form">
     motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
   </form><br>
+  <form action="/get" target="hidden-form">
+    <input type="button" value="timerResetter" id="timerResetter">
+  </form><br>
     <span>Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
   <br><br>
@@ -155,13 +160,14 @@ document.getElementById("lightSensor").addEventListener("click", function() { bu
 // document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
 document.getElementById("obstacleSensor").addEventListener("click", function() { buttonClick("obstacleSensorStatus=1");}, false);
 document.getElementById("connection").addEventListener("click", function() { buttonClick("motorSensorConnection=1");}, false);
+document.getElementById("timerResetter").addEventListener("click", function() { buttonClick("timerResetter=1");}, false);
 
 function buttonClick(sensorTypeStatus) {
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "/get?" + sensorTypeStatus, true);
   xhr.onreadystatechange = function () {
-    if (xhr.readyState == 4 && xhr.status == 200) {
-      alert("Saved value to ESP SPIFFS");
+    if (xhr.readyState == 4 && xhr.status == 200 && !(sensorTypeStatus == "timerResetter=1")) {
+      // alert("Saved value to ESP SPIFFS");
       setTimeout(function(){ document.location.reload(false); }, 500);
     }
   }
@@ -548,6 +554,15 @@ void updateMotorLed()
   analogWrite(motorRightPin2, motorRightB);
 }
 
+void clientCheckTimeout(int timeoutInSeconds) {
+  if (millis() - timeoutTimer > timeoutInSeconds * 1000)
+  {
+    appControl = LOW;
+    Serial.println("Client request not received => timeout");
+    timeoutTimer = millis();
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -664,6 +679,10 @@ void setup()
       }
       motorSensorConnection = inputMessage;
       writeFile(SPIFFS, "/motorSensorConnection.txt", inputMessage.c_str());
+    } // GET timerResetter
+    else if (request->hasParam("timerResetter")) {
+      timeoutTimer = millis();
+      inputMessage = "Timer reset";
     }
     else {
       inputMessage = "No message sent";
@@ -681,7 +700,7 @@ void setup()
       inputMessage = request->getParam(PARAM_BUTTON_APPCONTROL)->value();
       inputParam = PARAM_BUTTON_APPCONTROL;
       onOff = HIGH;
-      appControl = !appControl;
+      appControl = inputMessage.toInt();
     }
     else {
       inputMessage = "No message sent";
@@ -714,4 +733,5 @@ void loop()
   handleClick();
   handleMotorLed();
   updateMotorLed();
+  clientCheckTimeout(15); // timeoutInSeconds
 }
