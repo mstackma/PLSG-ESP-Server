@@ -111,37 +111,37 @@ const char index_html[] PROGMEM = R"rawliteral(
   %BUTTONPLACEHOLDER%
   <br><br><br>  
   <iframe style="display:none" name="hidden-form"></iframe>
-<form action="/get" target="hidden-form">
+<form action="/put" target="hidden-form">
     inputMotorLeftF (current value %inputMotorLeftF%): <input type="number" name="inputMotorLeftF" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     inputMotorLeftB (current value %inputMotorLeftB%): <input type="number" name="inputMotorLeftB" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     inputMotorRightF (current value %inputMotorRightF%): <input type="number" name="inputMotorRightF" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" id="lightSensor">
   </form><br>
   <!--
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" id="ultraSonicSensor">
     </form><br>
   -->
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     obstacleSensorStatus %obstacleSensorStatus% <input type="button" value="ObstacleSensor" id="obstacleSensor">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
   </form><br>
-  <form action="/get" target="hidden-form">
+  <form action="/put" target="hidden-form">
     <input type="button" value="timerResetter" id="timerResetter">
   </form><br>
     <span>Brightness Sensor Left Value</span> 
@@ -164,7 +164,7 @@ document.getElementById("timerResetter").addEventListener("click", function() { 
 
 function buttonClick(sensorTypeStatus) {
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", "/get?" + sensorTypeStatus, true);
+  xhr.open("GET", "/put?" + sensorTypeStatus, true);
   xhr.onreadystatechange = function () {
     if (xhr.readyState == 4 && xhr.status == 200 && !(sensorTypeStatus == "timerResetter=1")) {
       // alert("Saved value to ESP SPIFFS");
@@ -611,34 +611,100 @@ void setup()
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/html", index_html, processor); });
 
-  // Send a GET request to <ESP_IP>/get?INPUTNAME(daher zb inputMotorLeftF)=intWert
+  // Send a GET request to <ESP_IP>/get?inputMotorLeftF
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request)
             {
-    String inputMessage;
+              String outputMessage;
     // GET inputMotorLeftF
+    if (request->hasParam(PARAM_INT1)) {
+      String currentValue = readFile(SPIFFS, "/inputMotorLeftF.txt");
+      outputMessage = "inputMotorLeftF: ";
+      outputMessage += currentValue;
+    }
+    // GET inputMotorLeftB
+    else if (request->hasParam(PARAM_INT3)) {
+      String currentValue = readFile(SPIFFS, "/inputMotorLeftB.txt");
+      outputMessage = "inputMotorLeftB: ";
+      outputMessage += currentValue;
+    }
+    // GET inputMotorRightF
+    else if (request->hasParam(PARAM_INT2)) {
+      String currentValue = readFile(SPIFFS, "/inputMotorRightF.txt");
+      outputMessage = "inputMotorRightF: ";
+      outputMessage += currentValue;
+    }
+    // GET inputMotorRightB
+    else if (request->hasParam(PARAM_INT4)) {
+      String currentValue = readFile(SPIFFS, "/inputMotorRightB.txt");
+      outputMessage = "inputMotorRightB: ";
+      outputMessage += currentValue;
+    } // GET lightSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
+      String currentValue = readFile(SPIFFS, "/lightSensorStatus.txt");
+      outputMessage = "lightSensorStatus: ";
+      outputMessage += currentValue;
+    }/*  // GET ultraSonicSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
+      String currentValue = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+      outputMessage = "ultraSonicSensorStatus: ";
+      outputMessage = currentValue;
+    }  */
+    // GET obstacleSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR)) {
+      String currentValue = readFile(SPIFFS, "/obstacleSensorStatus.txt");
+      outputMessage = "obstacleSensorStatus: ";
+      outputMessage += currentValue;
+    } // GET motorSensorConnection
+    else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE)) {
+      String currentValue = readFile(SPIFFS, "/motorSensorConnection.txt");
+      outputMessage = "motorSensorConnection: ";
+      outputMessage += currentValue;
+    } // GET timerResetter
+    else if (request->hasParam("timerResetter")) {
+      outputMessage = "timerResetter";
+    }
+    else if (request->hasParam("lightL")) {
+      outputMessage = "lightL: ";
+      outputMessage += String(analogReadLightSensor(lightSensorPin1)).c_str();
+    }
+    else if (request->hasParam("lightR")) {
+      outputMessage = "lightR: ";
+      outputMessage += String(analogReadLightSensor(lightSensorPin2)).c_str();
+    }
+    else {
+      outputMessage = "No message sent";
+    }
+    // Serial.println(inputMessage);
+    request->send(200, "text/getter", outputMessage); });
+
+  // Send a GET request to <ESP_IP>/put?INPUTNAME(daher zb inputMotorLeftF)=intWert
+  server.on("/put", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    String inputMessage;
+    // PUT inputMotorLeftF
     if (request->hasParam(PARAM_INT1)) {
       inputMessage = request->getParam(PARAM_INT1)->value();
       inputMotorLeftF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
     }
-    // GET inputMotorLeftB
+    // PUT inputMotorLeftB
     else if (request->hasParam(PARAM_INT3)) {
       inputMessage = request->getParam(PARAM_INT3)->value();
       inputMotorLeftB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
     }
-    // GET inputMotorRightF
+    // PUT inputMotorRightF
     else if (request->hasParam(PARAM_INT2)) {
       inputMessage = request->getParam(PARAM_INT2)->value();
       inputMotorRightF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
-    // GET inputMotorRightB
+    // PUT inputMotorRightB
     else if (request->hasParam(PARAM_INT4)) {
       inputMessage = request->getParam(PARAM_INT4)->value();
       inputMotorRightB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
-    } // GET lightSensorStatus
+    } // PUT lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
       if (currentStatus == "On") {
@@ -648,7 +714,7 @@ void setup()
       }
       lightSensorStatus = inputMessage;
       writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
-    }/*  // GET ultraSonicSensorStatus
+    }/*  // PUT ultraSonicSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
       if (currentStatus == "On") {
@@ -659,7 +725,7 @@ void setup()
       ultraSonicSensorStatus = inputMessage;
       writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
     }  */
-    // GET obstacleSensorStatus
+    // PUT obstacleSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/obstacleSensorStatus.txt");
       if (currentStatus == "On") {
@@ -669,7 +735,7 @@ void setup()
       }
       obstacleSensorStatus = inputMessage;
       writeFile(SPIFFS, "/obstacleSensorStatus.txt", inputMessage.c_str());
-    } // GET motorSensorConnection
+    } // PUT motorSensorConnection
     else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE)) {
       String currentStatus = readFile(SPIFFS, "/motorSensorConnection.txt");
       if (currentStatus == "cross") {
@@ -679,7 +745,7 @@ void setup()
       }
       motorSensorConnection = inputMessage;
       writeFile(SPIFFS, "/motorSensorConnection.txt", inputMessage.c_str());
-    } // GET timerResetter
+    } // PUT timerResetter
     else if (request->hasParam("timerResetter")) {
       timeoutTimer = millis();
       inputMessage = "Timer reset";
@@ -733,5 +799,5 @@ void loop()
   handleClick();
   handleMotorLed();
   updateMotorLed();
-  clientCheckTimeout(15); // timeoutInSeconds
+  clientCheckTimeout(8); // timeoutInSeconds
 }
