@@ -15,8 +15,8 @@
 #define ledPinRight 15
 #define motorLeftPin1 32
 #define motorLeftPin2 33
-#define motorRightPin1 26
-#define motorRightPin2 27
+#define motorRightPin1 25
+#define motorRightPin2 26
 #define buttonPin 4
 // #define triggerPin 5
 // #define echoPin 18
@@ -37,7 +37,6 @@ volatile unsigned long timeoutTimer = millis();
 
 int analogLightValueLeft;
 int analogLightValueRight;
-const int thresholdLight = 1400;
 
 // Variables will change:
 int onOff = LOW;                        // robot motor, led state: on/HIGH or off/LOW
@@ -49,10 +48,12 @@ int motorLeftF;                         // motorLeftForward Value
 int motorRightF;                        // motorRightForward Value
 int motorLeftB;                         // motorLeftBackward Value
 int motorRightB;                        // motorRightBackward Value
+int thresholdLight;                     // thresholdLight Value
 int inputMotorLeftF;                    // App Input motorLeftForward Value
 int inputMotorRightF;                   // App Input motorRightForward Value
 int inputMotorLeftB;                    // App Input motorLeftBackward Value
 int inputMotorRightB;                   // App Input motorRightBackward Value
+int inputThresholdLight;                // App Input thresholdLight Value
 String lightSensorStatus;               // lightSensorStatus On Off
 String ultraSonicSensorStatus;          // ultraSonicSensorStatus On Off
 String obstacleSensorStatus;            // obstacleSensorStatus On Off
@@ -76,16 +77,17 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "inputMotorLeftF";                                // inputMotorLeftF
-const char *PARAM_INT2 = "inputMotorRightF";                               // inputMotorRightF
-const char *PARAM_INT3 = "inputMotorLeftB";                                // inputMotorLeftB
-const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
-const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
+const char *PARAM_INT1 = "inputMotorLeftF";                      // inputMotorLeftF
+const char *PARAM_INT2 = "inputMotorRightF";                     // inputMotorRightF
+const char *PARAM_INT3 = "inputMotorLeftB";                      // inputMotorLeftB
+const char *PARAM_INT4 = "inputMotorRightB";                     // inputMotorRightB
+const char *PARAM_INT5 = "inputThresholdLight";                  // inputThresholdLight
+const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
 // const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 
-const char *PARAM_WEB_BUTTON_OBSTACLE_SENSOR = "obstacleSensorStatus";     // obstacleSensorStatus "On" or "Off"
-const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection";     // motorSensorConnection "cross" or "parallel"
-const char *PARAM_BUTTON_APPCONTROL = "state";                             // appControl state (web and real button)
+const char *PARAM_WEB_BUTTON_OBSTACLE_SENSOR = "obstacleSensorStatus"; // obstacleSensorStatus "On" or "Off"
+const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection"; // motorSensorConnection "cross" or "parallel"
+const char *PARAM_BUTTON_APPCONTROL = "state";                         // appControl state (web and real button)
 
 // HTML web page to handle 4 input fields (motorLeftF..) and a button
 const char index_html[] PROGMEM = R"rawliteral(
@@ -128,6 +130,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/put" target="hidden-form">
+    inputThresholdLight (current value %inputThresholdLight%): <input type="number" name="inputThresholdLight" min="0" max="4095">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/put" target="hidden-form">
     lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" id="lightSensor">
   </form><br>
   <!--
@@ -141,9 +147,6 @@ const char index_html[] PROGMEM = R"rawliteral(
   <form action="/put" target="hidden-form">
     motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
   </form><br>
-  <form action="/put" target="hidden-form">
-    <input type="button" value="timerResetter" id="timerResetter">
-  </form><br>
     <span>Brightness Sensor Left Value</span> 
     <span id="lightL">%LIGHTL%</span>
   <br><br>
@@ -154,6 +157,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
     <span>cm</span>
   -->
+  <br><br>
+  <form action="/put" target="hidden-form">
+    <input type="button" value="timerResetter" id="timerResetter">
+  </form><br>
 </body>
 <script>
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
@@ -347,6 +354,10 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/inputMotorRightB.txt");
   }
+  else if (var == "inputThresholdLight")
+  {
+    return readFile(SPIFFS, "/inputThresholdLight.txt");
+  }
   else if (var == "lightSensorStatus")
   {
     return readFile(SPIFFS, "/lightSensorStatus.txt");
@@ -472,6 +483,11 @@ void getStoredSPIFFSValues()
   // Serial.print("*** Your inputMotorRightB: ");
   // Serial.println(inputMotorRightB);
 
+  inputThresholdLight = readFile(SPIFFS, "/inputThresholdLight.txt").toInt();
+  // Serial.print("*** Your inputThresholdLight: ");
+  // Serial.println(inputThresholdLight);
+  thresholdLight = inputThresholdLight;
+
   lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
   // ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
   obstacleSensorStatus = readFile(SPIFFS, "/obstacleSensorStatus.txt");
@@ -554,7 +570,8 @@ void updateMotorLed()
   analogWrite(motorRightPin2, motorRightB);
 }
 
-void clientCheckTimeout(int timeoutInSeconds) {
+void clientCheckTimeout(int timeoutInSeconds)
+{
   if (millis() - timeoutTimer > timeoutInSeconds * 1000)
   {
     appControl = LOW;
@@ -638,6 +655,11 @@ void setup()
       String currentValue = readFile(SPIFFS, "/inputMotorRightB.txt");
       outputMessage = "inputMotorRightB: ";
       outputMessage += currentValue;
+    } // GET inputThresholdLight
+    else if (request->hasParam(PARAM_INT5)) {
+      String currentValue = readFile(SPIFFS, "/inputThresholdLight.txt");
+      outputMessage = "inputThresholdLight: ";
+      outputMessage += currentValue;
     } // GET lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
       String currentValue = readFile(SPIFFS, "/lightSensorStatus.txt");
@@ -682,39 +704,58 @@ void setup()
             {
     String inputMessage;
     // PUT inputMotorLeftF
-    if (request->hasParam(PARAM_INT1)) {
+    if (request->hasParam(PARAM_INT1))
+    {
       inputMessage = request->getParam(PARAM_INT1)->value();
       inputMotorLeftF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftF.txt", inputMessage.c_str());
     }
     // PUT inputMotorLeftB
-    else if (request->hasParam(PARAM_INT3)) {
+    else if (request->hasParam(PARAM_INT3))
+    {
       inputMessage = request->getParam(PARAM_INT3)->value();
       inputMotorLeftB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorLeftB.txt", inputMessage.c_str());
     }
     // PUT inputMotorRightF
-    else if (request->hasParam(PARAM_INT2)) {
+    else if (request->hasParam(PARAM_INT2))
+    {
       inputMessage = request->getParam(PARAM_INT2)->value();
       inputMotorRightF = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightF.txt", inputMessage.c_str());
     }
     // PUT inputMotorRightB
-    else if (request->hasParam(PARAM_INT4)) {
+    else if (request->hasParam(PARAM_INT4))
+    {
       inputMessage = request->getParam(PARAM_INT4)->value();
       inputMotorRightB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
-    } // PUT lightSensorStatus
-    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
+    }
+    // PUT inputThresholdLight
+    else if (request->hasParam(PARAM_INT5))
+    {
+      inputMessage = request->getParam(PARAM_INT5)->value();
+      inputThresholdLight = inputMessage.toInt();
+      thresholdLight = inputThresholdLight;
+      writeFile(SPIFFS, "/inputThresholdLight.txt", inputMessage.c_str());
+    }
+    // PUT lightSensorStatus
+    else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR))
+    {
       String currentStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
-      if (currentStatus == "On") {
+      if (currentStatus == "On")
+      {
         inputMessage = "Off";
-      } else {
+      }
+      else
+      {
         inputMessage = "On";
       }
       lightSensorStatus = inputMessage;
       writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
-    }/*  // PUT ultraSonicSensorStatus
+    }
+    /*
+    // PUT ultraSonicSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
       if (currentStatus == "On") {
@@ -726,31 +767,43 @@ void setup()
       writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
     }  */
     // PUT obstacleSensorStatus
-    else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR)) {
+    else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR))
+    {
       String currentStatus = readFile(SPIFFS, "/obstacleSensorStatus.txt");
-      if (currentStatus == "On") {
+      if (currentStatus == "On")
+      {
         inputMessage = "Off";
-      } else {
+      }
+      else
+      {
         inputMessage = "On";
       }
       obstacleSensorStatus = inputMessage;
       writeFile(SPIFFS, "/obstacleSensorStatus.txt", inputMessage.c_str());
-    } // PUT motorSensorConnection
-    else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE)) {
+    }
+    // PUT motorSensorConnection
+    else if (request->hasParam(PARAM_WEB_BUTTON_CONNECTIONTYPE))
+    {
       String currentStatus = readFile(SPIFFS, "/motorSensorConnection.txt");
-      if (currentStatus == "cross") {
+      if (currentStatus == "cross")
+      {
         inputMessage = "parallel";
-      } else {
+      }
+      else
+      {
         inputMessage = "cross";
       }
       motorSensorConnection = inputMessage;
       writeFile(SPIFFS, "/motorSensorConnection.txt", inputMessage.c_str());
-    } // PUT timerResetter
-    else if (request->hasParam("timerResetter")) {
+    }
+    // PUT timerResetter
+    else if (request->hasParam("timerResetter"))
+    {
       timeoutTimer = millis();
       inputMessage = "Timer reset";
     }
-    else {
+    else
+    {
       inputMessage = "No message sent";
     }
     // Serial.println(inputMessage);
@@ -799,5 +852,5 @@ void loop()
   handleClick();
   handleMotorLed();
   updateMotorLed();
-  clientCheckTimeout(8); // timeoutInSeconds
+  // clientCheckTimeout(8); // timeoutInSeconds
 }
