@@ -765,7 +765,7 @@ void setup()
     {
       inputMessage = request->getParam(PARAM_INT6)->value();
       inputDelayBackwardsDrive = inputMessage.toInt();
-      thresholdLight = inputDelayBackwardsDrive;
+      delayBackwardsDrive = inputDelayBackwardsDrive;
       writeFile(SPIFFS, "/inputDelayBackwardsDrive.txt", inputMessage.c_str());
     }
     // PUT lightSensorStatus
