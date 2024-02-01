@@ -49,11 +49,13 @@ int motorRightF;                        // motorRightForward Value
 int motorLeftB;                         // motorLeftBackward Value
 int motorRightB;                        // motorRightBackward Value
 int thresholdLight;                     // thresholdLight Value
+int delayBackwardsDrive;                // delay in milliseconds of reversing after an obstacle
 int inputMotorLeftF;                    // App Input motorLeftForward Value
 int inputMotorRightF;                   // App Input motorRightForward Value
 int inputMotorLeftB;                    // App Input motorLeftBackward Value
 int inputMotorRightB;                   // App Input motorRightBackward Value
 int inputThresholdLight;                // App Input thresholdLight Value
+int inputDelayBackwardsDrive;           // App Input delayBackwardsDrive Value
 String lightSensorStatus;               // lightSensorStatus On Off
 String ultraSonicSensorStatus;          // ultraSonicSensorStatus On Off
 String obstacleSensorStatus;            // obstacleSensorStatus On Off
@@ -82,6 +84,7 @@ const char *PARAM_INT2 = "inputMotorRightF";                     // inputMotorRi
 const char *PARAM_INT3 = "inputMotorLeftB";                      // inputMotorLeftB
 const char *PARAM_INT4 = "inputMotorRightB";                     // inputMotorRightB
 const char *PARAM_INT5 = "inputThresholdLight";                  // inputThresholdLight
+const char *PARAM_INT6 = "inputDelayBackwardsDrive";             // inputDelayBackwardsDrive
 const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
 // const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 
@@ -99,7 +102,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     html {font-family: Arial; display: inline-block; text-align: center;}
     h2 {font-size: 3.0rem;}
     p {font-size: 2.0rem;}
-    body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
+    body {max-width: 700px; margin:0px auto; padding-bottom: 25px;}
     .switch {position: relative; display: inline-block; width: 120px; height: 68px} 
     .switch input {display: none}
     .slider {position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 34px}
@@ -131,6 +134,10 @@ const char index_html[] PROGMEM = R"rawliteral(
   </form><br>
   <form action="/put" target="hidden-form">
     inputThresholdLight (current value %inputThresholdLight%): <input type="number" name="inputThresholdLight" min="0" max="4095">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/put" target="hidden-form">
+    inputDelayBackwardsDrive in milliseconds (current value %inputDelayBackwardsDrive%): <input type="number" name="inputDelayBackwardsDrive" min="0">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/put" target="hidden-form">
@@ -358,6 +365,10 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/inputThresholdLight.txt");
   }
+  else if (var == "inputDelayBackwardsDrive")
+  {
+    return readFile(SPIFFS, "/inputDelayBackwardsDrive.txt");
+  }
   else if (var == "lightSensorStatus")
   {
     return readFile(SPIFFS, "/lightSensorStatus.txt");
@@ -487,6 +498,11 @@ void getStoredSPIFFSValues()
   // Serial.print("*** Your inputThresholdLight: ");
   // Serial.println(inputThresholdLight);
   thresholdLight = inputThresholdLight;
+  
+  inputDelayBackwardsDrive = readFile(SPIFFS, "/inputDelayBackwardsDrive.txt").toInt();
+  // Serial.print("*** Your inputDelayBackwardsDrive: ");
+  // Serial.println(inputDelayBackwardsDrive);
+  delayBackwardsDrive = inputDelayBackwardsDrive;
 
   lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
   // ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
@@ -660,6 +676,11 @@ void setup()
       String currentValue = readFile(SPIFFS, "/inputThresholdLight.txt");
       outputMessage = "inputThresholdLight: ";
       outputMessage += currentValue;
+    } // GET inputDelayBackwardsDrive
+    else if (request->hasParam(PARAM_INT6)) {
+      String currentValue = readFile(SPIFFS, "/inputDelayBackwardsDrive.txt");
+      outputMessage = "inputDelayBackwardsDrive: ";
+      outputMessage += currentValue;
     } // GET lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR)) {
       String currentValue = readFile(SPIFFS, "/lightSensorStatus.txt");
@@ -738,6 +759,14 @@ void setup()
       inputThresholdLight = inputMessage.toInt();
       thresholdLight = inputThresholdLight;
       writeFile(SPIFFS, "/inputThresholdLight.txt", inputMessage.c_str());
+    }
+    // PUT inputDelayBackwardsDrive
+    else if (request->hasParam(PARAM_INT6))
+    {
+      inputMessage = request->getParam(PARAM_INT6)->value();
+      inputDelayBackwardsDrive = inputMessage.toInt();
+      thresholdLight = inputDelayBackwardsDrive;
+      writeFile(SPIFFS, "/inputDelayBackwardsDrive.txt", inputMessage.c_str());
     }
     // PUT lightSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_LIGHT_SENSOR))
