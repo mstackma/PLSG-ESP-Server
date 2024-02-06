@@ -510,6 +510,16 @@ void getStoredSPIFFSValues()
   motorSensorConnection = readFile(SPIFFS, "/motorSensorConnection.txt");
 }
 
+void updateMotorLed()
+{
+  analogWrite(ledPinLeft, motorLeftF);
+  analogWrite(ledPinRight, motorRightF);
+  analogWrite(motorLeftPin1, motorLeftF);
+  analogWrite(motorLeftPin2, motorLeftB);
+  analogWrite(motorRightPin1, motorRightF);
+  analogWrite(motorRightPin2, motorRightB);
+}
+
 bool obstacleCheck()
 {
   bool obstacleSensorValue;
@@ -526,7 +536,7 @@ bool obstacleCheck()
   return obstacleSensorValue;
 }
 
-void handleMotorLed()
+void handleMotor()
 {
   // float distanceCm = readUltrasonicDistanceInCm();
   // if (onOff == 1 && distanceCm < 6 && distanceCm > 0)
@@ -537,14 +547,12 @@ void handleMotorLed()
     // !!! Implement here: Send signal: "Obstacle !!!" !!!
 
     // Serial.println(distanceCm);
-    analogWrite(ledPinLeft, 0);
-    analogWrite(ledPinRight, 0);
-
-    analogWrite(motorLeftPin1, 0);
-    analogWrite(motorLeftPin2, 200);
-    analogWrite(motorRightPin1, 0);
-    analogWrite(motorRightPin2, 200);
-    delay(2000); // 2 seconds backwards
+    motorLeftF = 0;
+    motorLeftB = 200;
+    motorRightF = 0;
+    motorRightB = 200;
+    updateMotorLed();
+    delay(delayBackwardsDrive); // time that is driven backwards
 
     getStoredSPIFFSValues();
   }
@@ -574,16 +582,6 @@ void handleMotorLed()
   {
     stopMotor();
   }
-}
-
-void updateMotorLed()
-{
-  analogWrite(ledPinLeft, motorLeftF);
-  analogWrite(ledPinRight, motorRightF);
-  analogWrite(motorLeftPin1, motorLeftF);
-  analogWrite(motorLeftPin2, motorLeftB);
-  analogWrite(motorRightPin1, motorRightF);
-  analogWrite(motorRightPin2, motorRightB);
 }
 
 void clientCheckTimeout(int timeoutInSeconds)
@@ -879,7 +877,7 @@ void loop()
 {
   buttonState = digitalRead(buttonPin);
   handleClick();
-  handleMotorLed();
+  handleMotor();
   updateMotorLed();
   // clientCheckTimeout(8); // timeoutInSeconds
 }
