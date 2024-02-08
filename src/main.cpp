@@ -18,17 +18,21 @@
 #define motorRightPin1 25
 #define motorRightPin2 26
 #define buttonPin 4
-// #define triggerPin 5
-// #define echoPin 18
+#define triggerPin 5
+#define echoPin 5 // 18
 
-#define enablerObstacleSensor 5
-#define obstacleSensor 18
+#define enablerObstacleSensorPin 19 // 5
+#define obstacleSensorPin 18
 #define lightSensorPin1 34
 #define lightSensorPin2 35
 // define sound speed in cm/uS
 #define SOUND_SPEED 0.034
 
 long durationSoundWave;
+const int numDistanceReadings = 5;      // numbers of distance-readings
+int distanceArray[numDistanceReadings]; // distance array for calculating the average to eliminate short incorrect distance values
+int readIndex = 0;                      // Array-Index
+int averageDistance = 0;
 
 unsigned long startTime = 0;
 unsigned long durationButtonClick = 0;
@@ -43,7 +47,7 @@ int onOff = LOW;                        // robot motor, led state: on/HIGH or of
 int appControl = LOW;                   // the current state: App-controlled or autonomous robot
 int buttonState = 0;                    // the current reading from the input buttonPin
 int lastButtonState = 0;                // the previous reading from the input buttonPin
-int cm = 0;                             // distance cm
+int distance = 0;                       // distance cm
 int motorLeftF;                         // motorLeftForward Value
 int motorRightF;                        // motorRightForward Value
 int motorLeftB;                         // motorLeftBackward Value
@@ -79,14 +83,14 @@ AsyncWebServer server(80);
 const char *ssid = "ssid";
 const char *password = "password";
 
-const char *PARAM_INT1 = "inputMotorLeftF";                      // inputMotorLeftF
-const char *PARAM_INT2 = "inputMotorRightF";                     // inputMotorRightF
-const char *PARAM_INT3 = "inputMotorLeftB";                      // inputMotorLeftB
-const char *PARAM_INT4 = "inputMotorRightB";                     // inputMotorRightB
-const char *PARAM_INT5 = "inputThresholdLight";                  // inputThresholdLight
-const char *PARAM_INT6 = "inputDelayBackwardsDrive";             // inputDelayBackwardsDrive
-const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus"; // lightSensorStatus "On" or "Off"
-// const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
+const char *PARAM_INT1 = "inputMotorLeftF";                                // inputMotorLeftF
+const char *PARAM_INT2 = "inputMotorRightF";                               // inputMotorRightF
+const char *PARAM_INT3 = "inputMotorLeftB";                                // inputMotorLeftB
+const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
+const char *PARAM_INT5 = "inputThresholdLight";                            // inputThresholdLight
+const char *PARAM_INT6 = "inputDelayBackwardsDrive";                       // inputDelayBackwardsDrive
+const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
+const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 
 const char *PARAM_WEB_BUTTON_OBSTACLE_SENSOR = "obstacleSensorStatus"; // obstacleSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection"; // motorSensorConnection "cross" or "parallel"
@@ -143,13 +147,11 @@ const char index_html[] PROGMEM = R"rawliteral(
   <form action="/put" target="hidden-form">
     lightSensorStatus %lightSensorStatus% <input type="button" value="LightSensor" id="lightSensor">
   </form><br>
-  <!--
   <form action="/put" target="hidden-form">
     ultraSonicSensorStatus %ultraSonicSensorStatus% <input type="button" value="UltraSonicSensor" id="ultraSonicSensor">
-    </form><br>
-  -->
+  </form><br>
   <form action="/put" target="hidden-form">
-    obstacleSensorStatus %obstacleSensorStatus% <input type="button" value="ObstacleSensor" id="obstacleSensor">
+    obstacleSensorStatus %obstacleSensorStatus% <input type="button" value="ObstacleSensor" id="obstacleSensorPin">
   </form><br>
   <form action="/put" target="hidden-form">
     motorSensorConnection %motorSensorConnection% <input type="button" value="motorSensorConnection" id="connection">
@@ -159,11 +161,10 @@ const char index_html[] PROGMEM = R"rawliteral(
   <br><br>
     <span>Brightness Sensor Right Value</span> 
     <span id="lightR">%LIGHTR%</span>
-	<!-- <br><br>
+	<br><br>
     <span>Distance in front</span> 
     <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
     <span>cm</span>
-  -->
   <br><br>
   <form action="/put" target="hidden-form">
     <input type="button" value="timerResetter" id="timerResetter">
@@ -171,8 +172,8 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body>
 <script>
 document.getElementById("lightSensor").addEventListener("click", function() { buttonClick("lightSensorStatus=1");}, false);
-// document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
-document.getElementById("obstacleSensor").addEventListener("click", function() { buttonClick("obstacleSensorStatus=1");}, false);
+document.getElementById("ultraSonicSensor").addEventListener("click", function() { buttonClick("ultraSonicSensorStatus=1");}, false);
+document.getElementById("obstacleSensorPin").addEventListener("click", function() { buttonClick("obstacleSensorStatus=1");}, false);
 document.getElementById("connection").addEventListener("click", function() { buttonClick("motorSensorConnection=1");}, false);
 document.getElementById("timerResetter").addEventListener("click", function() { buttonClick("timerResetter=1");}, false);
 
@@ -224,7 +225,7 @@ function submitMessage() {
 
 fetchData("lightL", "/lightL");
 fetchData("lightR", "/lightR");
-// fetchData("ultraSonicDistance", "/ultraSonicDistance");
+fetchData("ultraSonicDistance", "/ultraSonicDistance");
 
 function fetchData(elementId, url) {
   setInterval(function () {
@@ -236,7 +237,7 @@ function fetchData(elementId, url) {
     };
     xhttp.open("GET", url, true);
     xhttp.send();
-  }, 10000);
+  }, 500);
 }
 
 </script>
@@ -313,12 +314,13 @@ int analogReadLightSensor(int sensorPin)
   }
   return sensorData;
 }
-/*
-float readUltrasonicDistanceInCm()
+
+int readUltrasonicDistanceInCm() // int is only necessary for 3 pin ultraSonicSensor
 {
-  float distanceCm;
+  int distanceCm;
   if (ultraSonicSensorStatus == "On")
   {
+    pinMode(triggerPin, OUTPUT); // only necessary for 3 Pin ultraSonicSensor
     // Clear the trigger
     digitalWrite(triggerPin, LOW);
     delayMicroseconds(2);
@@ -328,19 +330,34 @@ float readUltrasonicDistanceInCm()
     delayMicroseconds(10);
     digitalWrite(triggerPin, LOW);
 
+    pinMode(echoPin, INPUT); // only necessary for 3 Pin ultraSonicSensor
     // Reads the echoPin, returns the sound wave travel time in microseconds
     durationSoundWave = pulseIn(echoPin, HIGH);
 
     // Calculate the distance
     distanceCm = durationSoundWave * SOUND_SPEED / 2;
+
+    // Calculate the averageDistance to eliminate short incorrect distance values
+    if (distanceCm > 0 && distanceCm < 250)
+    {
+      distanceArray[readIndex] = distanceCm;
+      readIndex = (readIndex + 1) % numDistanceReadings;
+
+      int sum = 0;
+      for (int i = 0; i < numDistanceReadings; i++)
+      {
+        sum += distanceArray[i];
+      }
+      averageDistance = sum / numDistanceReadings;
+    }
   }
   else
   {
-    distanceCm = 0;
+    averageDistance = 0;
   }
-  return distanceCm;
+  return averageDistance;
 }
- */
+
 // Replaces placeholder with stored values
 String processor(const String &var)
 {
@@ -372,11 +389,11 @@ String processor(const String &var)
   else if (var == "lightSensorStatus")
   {
     return readFile(SPIFFS, "/lightSensorStatus.txt");
-  } /*
-   else if (var == "ultraSonicSensorStatus")
-   {
-     return readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
-   } */
+  }
+  else if (var == "ultraSonicSensorStatus")
+  {
+    return readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+  }
   else if (var == "obstacleSensorStatus")
   {
     return readFile(SPIFFS, "/obstacleSensorStatus.txt");
@@ -404,12 +421,11 @@ String processor(const String &var)
     // reads the input on analog pin (value between 0 and 4095)
     analogLightValueRight = analogReadLightSensor(lightSensorPin2);
     return String(analogLightValueRight);
-  } /*
+  }
   else if (var == "ULTRADISTANCE")
   {
-    float distanceCm = readUltrasonicDistanceInCm();
-    return String(distanceCm);
-  } */
+    return String(distance);
+  }
   return String();
 }
 
@@ -432,8 +448,8 @@ void handleClick()
         Serial.println("-----------------------------short------------------------------------");
         Serial.println("lightSensorStatus");
         Serial.println(lightSensorStatus);
-        /* Serial.println("ultraSonicSensorStatus");
-        Serial.println(ultraSonicSensorStatus); */
+        Serial.println("ultraSonicSensorStatus");
+        Serial.println(ultraSonicSensorStatus);
         Serial.println("obstacleSensorStatus");
         Serial.println(obstacleSensorStatus);
         Serial.println("motorSensorConnection");
@@ -498,14 +514,14 @@ void getStoredSPIFFSValues()
   // Serial.print("*** Your inputThresholdLight: ");
   // Serial.println(inputThresholdLight);
   thresholdLight = inputThresholdLight;
-  
+
   inputDelayBackwardsDrive = readFile(SPIFFS, "/inputDelayBackwardsDrive.txt").toInt();
   // Serial.print("*** Your inputDelayBackwardsDrive: ");
   // Serial.println(inputDelayBackwardsDrive);
   delayBackwardsDrive = inputDelayBackwardsDrive;
 
   lightSensorStatus = readFile(SPIFFS, "/lightSensorStatus.txt");
-  // ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
+  ultraSonicSensorStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
   obstacleSensorStatus = readFile(SPIFFS, "/obstacleSensorStatus.txt");
   motorSensorConnection = readFile(SPIFFS, "/motorSensorConnection.txt");
 }
@@ -525,12 +541,12 @@ bool obstacleCheck()
   bool obstacleSensorValue;
   if (obstacleSensorStatus == "On")
   {
-    digitalWrite(enablerObstacleSensor, HIGH); // activates obstacleSensor
-    obstacleSensorValue = digitalRead(obstacleSensor);
+    digitalWrite(enablerObstacleSensorPin, HIGH); // activates obstacleSensorPin
+    obstacleSensorValue = digitalRead(obstacleSensorPin);
   }
   else
   {
-    digitalWrite(enablerObstacleSensor, LOW);
+    digitalWrite(enablerObstacleSensorPin, LOW);
     obstacleSensorValue = HIGH; // HIGH = no obstacle
   }
   return obstacleSensorValue;
@@ -538,11 +554,22 @@ bool obstacleCheck()
 
 void handleMotor()
 {
-  // float distanceCm = readUltrasonicDistanceInCm();
-  // if (onOff == 1 && distanceCm < 6 && distanceCm > 0)
-
-  bool obstacleSensorValue = obstacleCheck();
-  if (onOff == 1 && obstacleSensorValue == LOW)
+  /*
+  It is important to run the readUltrasonicDistanceInCm() at regular intervals,
+  as otherwise incorrect distance values may result!
+  Therefore, only the distance is passed on here.
+  The calculation takes place via the regular http_get request to display the values in the web browser.
+  take a look at html JS Code: ...xhttp.open("GET", url, true);
+    xhttp.send();
+  }, 600);}
+  -> 600 ms interval
+  and cpp setup():
+  server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
+            { distance = readUltrasonicDistanceInCm(); ...
+  */
+  if (onOff == 1 && distance < 7)
+  // bool obstacleSensorValue = obstacleCheck();
+  // if (onOff == 1 && obstacleSensorValue == LOW)
   {
     // !!! Implement here: Send signal: "Obstacle !!!" !!!
 
@@ -598,10 +625,10 @@ void setup()
 {
   Serial.begin(115200);
 
-  // pinMode(triggerPin, OUTPUT);
-  // pinMode(echoPin, INPUT);
-  pinMode(obstacleSensor, INPUT);
-  pinMode(enablerObstacleSensor, OUTPUT);
+  pinMode(triggerPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(obstacleSensorPin, INPUT);
+  pinMode(enablerObstacleSensorPin, OUTPUT);
 
   pinMode(ledPinLeft, OUTPUT);
   pinMode(ledPinRight, OUTPUT);
@@ -684,12 +711,12 @@ void setup()
       String currentValue = readFile(SPIFFS, "/lightSensorStatus.txt");
       outputMessage = "lightSensorStatus: ";
       outputMessage += currentValue;
-    }/*  // GET ultraSonicSensorStatus
+    } // GET ultraSonicSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
       String currentValue = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
       outputMessage = "ultraSonicSensorStatus: ";
-      outputMessage = currentValue;
-    }  */
+      outputMessage += currentValue;
+    }
     // GET obstacleSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR)) {
       String currentValue = readFile(SPIFFS, "/obstacleSensorStatus.txt");
@@ -711,6 +738,10 @@ void setup()
     else if (request->hasParam("lightR")) {
       outputMessage = "lightR: ";
       outputMessage += String(analogReadLightSensor(lightSensorPin2)).c_str();
+    }
+    else if (request->hasParam("ultraSonicDistance")) {
+      outputMessage = "ultraSonicDistance: ";
+      outputMessage += String(distance).c_str();
     }
     else {
       outputMessage = "No message sent";
@@ -781,7 +812,6 @@ void setup()
       lightSensorStatus = inputMessage;
       writeFile(SPIFFS, "/lightSensorStatus.txt", inputMessage.c_str());
     }
-    /*
     // PUT ultraSonicSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_ULTRASONIC_SENSOR)) {
       String currentStatus = readFile(SPIFFS, "/ultraSonicSensorStatus.txt");
@@ -792,7 +822,7 @@ void setup()
       }
       ultraSonicSensorStatus = inputMessage;
       writeFile(SPIFFS, "/ultraSonicSensorStatus.txt", inputMessage.c_str());
-    }  */
+    }
     // PUT obstacleSensorStatus
     else if (request->hasParam(PARAM_WEB_BUTTON_OBSTACLE_SENSOR))
     {
@@ -863,10 +893,11 @@ void setup()
 
   server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin2)).c_str()); });
-  /*
-    server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send_P(200, "text/plain", String(readUltrasonicDistanceInCm()).c_str()); });
-   */
+
+  server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
+            { distance = readUltrasonicDistanceInCm();
+            request->send_P(200, "text/plain", String(distance).c_str()); });
+
   server.onNotFound(notFound);
   server.begin();
 
