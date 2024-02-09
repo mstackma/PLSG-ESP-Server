@@ -18,10 +18,10 @@
 #define motorRightPin1 25
 #define motorRightPin2 26
 #define buttonPin 4
-#define triggerPin 5
-#define echoPin 5 // 18
+#define triggerPin 19
+#define echoPin 19
 
-#define enablerObstacleSensorPin 19 // 5
+#define enablerObstacleSensorPin 5
 #define obstacleSensorPin 18
 #define lightSensorPin1 34
 #define lightSensorPin2 35
@@ -162,7 +162,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span>Brightness Sensor Right Value</span> 
     <span id="lightR">%LIGHTR%</span>
 	<br><br>
-    <span>Distance in front</span> 
+    <span>ultraSonicDistance</span> 
     <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
     <span>cm</span>
   <br><br>
@@ -567,7 +567,7 @@ void handleMotor()
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { distance = readUltrasonicDistanceInCm(); ...
   */
-  if (onOff == 1 && distance < 7)
+  if (onOff == 1 && distance < 7 && ultraSonicSensorStatus == "On") // [&& ultraSonicSensorStatus == "On"] is important, because if ultraSonicSensorStatus is off, the distance is 0, so this if would always be true
   // bool obstacleSensorValue = obstacleCheck();
   // if (onOff == 1 && obstacleSensorValue == LOW)
   {
