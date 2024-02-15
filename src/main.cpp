@@ -582,7 +582,7 @@ bool obstacleCheck()
   return obstacleSensorValue;
 }
 
-void handleMotor()
+void handleMotorLed()
 {
   /*
   It is important to run the readUltrasonicDistanceInCm() at regular intervals,
@@ -971,7 +971,7 @@ void loop()
 {
   buttonState = digitalRead(buttonPin);
   handleClick();
-  handleMotor();
+  handleMotorLed();
   updateMotorLed();
   // clientCheckTimeout(8); // timeoutInSeconds
 }
