@@ -19,7 +19,7 @@
 #define motorRightPin2 26
 #define buttonPin 4
 #define triggerPin 19
-#define echoPin 19
+#define echoPin 21
 
 #define enablerObstacleSensorPin 5
 #define obstacleSensorPin 18
@@ -54,6 +54,10 @@ int motorLeftB;                         // motorLeftBackward Value
 int motorRightB;                        // motorRightBackward Value
 int thresholdLight;                     // thresholdLight Value
 int delayBackwardsDrive;                // delay in milliseconds of reversing after an obstacle
+int ledLeft;                            // ledLeft Value
+int ledRight;                           // ledRight Value
+int inputLedLeft;                       // App Input ledLeft Value
+int inputLedRight;                      // App Input ledRight Value
 int inputMotorLeftF;                    // App Input motorLeftForward Value
 int inputMotorRightF;                   // App Input motorRightForward Value
 int inputMotorLeftB;                    // App Input motorLeftBackward Value
@@ -87,8 +91,10 @@ const char *PARAM_INT1 = "inputMotorLeftF";                                // in
 const char *PARAM_INT2 = "inputMotorRightF";                               // inputMotorRightF
 const char *PARAM_INT3 = "inputMotorLeftB";                                // inputMotorLeftB
 const char *PARAM_INT4 = "inputMotorRightB";                               // inputMotorRightB
-const char *PARAM_INT5 = "inputThresholdLight";                            // inputThresholdLight
-const char *PARAM_INT6 = "inputDelayBackwardsDrive";                       // inputDelayBackwardsDrive
+const char *PARAM_INT5 = "inputLedLeft";                                   // inputLedLeft
+const char *PARAM_INT6 = "inputLedRight";                                  // inputLedRight
+const char *PARAM_INT7 = "inputThresholdLight";                            // inputThresholdLight
+const char *PARAM_INT8 = "inputDelayBackwardsDrive";                       // inputDelayBackwardsDrive
 const char *PARAM_WEB_BUTTON_LIGHT_SENSOR = "lightSensorStatus";           // lightSensorStatus "On" or "Off"
 const char *PARAM_WEB_BUTTON_ULTRASONIC_SENSOR = "ultraSonicSensorStatus"; // ultraSonicSensorStatus "On" or "Off"
 
@@ -134,6 +140,14 @@ const char index_html[] PROGMEM = R"rawliteral(
   </form><br>
   <form action="/put" target="hidden-form">
     inputMotorRightB (current value %inputMotorRightB%): <input type="number" name="inputMotorRightB" min="0" max="255">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/put" target="hidden-form">
+    inputLedLeft (current value %inputLedLeft%): <input type="number" name="inputLedLeft" min="0" max="255">
+    <input type="submit" value="Submit" onclick="submitMessage()">
+  </form><br>
+  <form action="/put" target="hidden-form">
+    inputLedRight (current value %inputLedRight%): <input type="number" name="inputLedRight" min="0" max="255">
     <input type="submit" value="Submit" onclick="submitMessage()">
   </form><br>
   <form action="/put" target="hidden-form">
@@ -378,6 +392,14 @@ String processor(const String &var)
   {
     return readFile(SPIFFS, "/inputMotorRightB.txt");
   }
+  else if (var == "inputLedLeft")
+  {
+    return readFile(SPIFFS, "/inputLedLeft.txt");
+  }
+  else if (var == "inputLedRight")
+  {
+    return readFile(SPIFFS, "/inputLedRight.txt");
+  }
   else if (var == "inputThresholdLight")
   {
     return readFile(SPIFFS, "/inputThresholdLight.txt");
@@ -509,6 +531,14 @@ void getStoredSPIFFSValues()
   inputMotorRightB = readFile(SPIFFS, "/inputMotorRightB.txt").toInt();
   // Serial.print("*** Your inputMotorRightB: ");
   // Serial.println(inputMotorRightB);
+  
+  inputLedLeft = readFile(SPIFFS, "/inputLedLeft.txt").toInt();
+  // Serial.print("*** Your inputLedLeft: ");
+  // Serial.println(inputLedLeft);
+  
+  inputLedRight = readFile(SPIFFS, "/inputLedRight.txt").toInt();
+  // Serial.print("*** Your inputLedRight: ");
+  // Serial.println(inputLedRight);
 
   inputThresholdLight = readFile(SPIFFS, "/inputThresholdLight.txt").toInt();
   // Serial.print("*** Your inputThresholdLight: ");
@@ -528,8 +558,8 @@ void getStoredSPIFFSValues()
 
 void updateMotorLed()
 {
-  analogWrite(ledPinLeft, motorLeftF);
-  analogWrite(ledPinRight, motorRightF);
+  analogWrite(ledPinLeft, ledLeft);
+  analogWrite(ledPinRight, ledRight);
   analogWrite(motorLeftPin1, motorLeftF);
   analogWrite(motorLeftPin2, motorLeftB);
   analogWrite(motorRightPin1, motorRightF);
@@ -578,6 +608,8 @@ void handleMotor()
     motorLeftB = 200;
     motorRightF = 0;
     motorRightB = 200;
+    ledLeft = 255;
+    ledRight = 255;
     updateMotorLed();
     delay(delayBackwardsDrive); // time that is driven backwards
 
@@ -589,12 +621,16 @@ void handleMotor()
     motorLeftB = inputMotorLeftB;
     motorRightF = inputMotorRightF;
     motorRightB = inputMotorRightB;
+    ledLeft = inputLedLeft;
+    ledRight = inputLedRight;
   }
   else if (onOff == 1 && appControl == 0)
   {
     // reads the light input on analog pin (value between 0 and 4095)
     analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
     analogLightValueRight = analogReadLightSensor(lightSensorPin2);
+    ledLeft = map(analogLightValueLeft, thresholdLight, 4095, 10, 255);
+    ledRight = map(analogLightValueRight, thresholdLight, 4095, 10, 255);;
 
     if (analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight)
     {
@@ -696,13 +732,26 @@ void setup()
       String currentValue = readFile(SPIFFS, "/inputMotorRightB.txt");
       outputMessage = "inputMotorRightB: ";
       outputMessage += currentValue;
-    } // GET inputThresholdLight
+    }
+    // GET inputLedLeft
     else if (request->hasParam(PARAM_INT5)) {
+      String currentValue = readFile(SPIFFS, "/inputLedLeft.txt");
+      outputMessage = "inputLedLeft: ";
+      outputMessage += currentValue;
+    }
+    // GET inputLedRight
+    else if (request->hasParam(PARAM_INT6)) {
+      String currentValue = readFile(SPIFFS, "/inputLedRight.txt");
+      outputMessage = "inputLedRight: ";
+      outputMessage += currentValue;
+    }
+    // GET inputThresholdLight
+    else if (request->hasParam(PARAM_INT7)) {
       String currentValue = readFile(SPIFFS, "/inputThresholdLight.txt");
       outputMessage = "inputThresholdLight: ";
       outputMessage += currentValue;
     } // GET inputDelayBackwardsDrive
-    else if (request->hasParam(PARAM_INT6)) {
+    else if (request->hasParam(PARAM_INT8)) {
       String currentValue = readFile(SPIFFS, "/inputDelayBackwardsDrive.txt");
       outputMessage = "inputDelayBackwardsDrive: ";
       outputMessage += currentValue;
@@ -781,18 +830,32 @@ void setup()
       inputMotorRightB = inputMessage.toInt();
       writeFile(SPIFFS, "/inputMotorRightB.txt", inputMessage.c_str());
     }
-    // PUT inputThresholdLight
+    // PUT inputLedLeft
     else if (request->hasParam(PARAM_INT5))
     {
       inputMessage = request->getParam(PARAM_INT5)->value();
+      inputLedLeft = inputMessage.toInt();
+      writeFile(SPIFFS, "/inputLedLeft.txt", inputMessage.c_str());
+    }
+    // PUT inputLedRight
+    else if (request->hasParam(PARAM_INT6))
+    {
+      inputMessage = request->getParam(PARAM_INT6)->value();
+      inputLedRight = inputMessage.toInt();
+      writeFile(SPIFFS, "/inputLedRight.txt", inputMessage.c_str());
+    }
+    // PUT inputThresholdLight
+    else if (request->hasParam(PARAM_INT7))
+    {
+      inputMessage = request->getParam(PARAM_INT7)->value();
       inputThresholdLight = inputMessage.toInt();
       thresholdLight = inputThresholdLight;
       writeFile(SPIFFS, "/inputThresholdLight.txt", inputMessage.c_str());
     }
     // PUT inputDelayBackwardsDrive
-    else if (request->hasParam(PARAM_INT6))
+    else if (request->hasParam(PARAM_INT8))
     {
-      inputMessage = request->getParam(PARAM_INT6)->value();
+      inputMessage = request->getParam(PARAM_INT8)->value();
       inputDelayBackwardsDrive = inputMessage.toInt();
       delayBackwardsDrive = inputDelayBackwardsDrive;
       writeFile(SPIFFS, "/inputDelayBackwardsDrive.txt", inputMessage.c_str());
