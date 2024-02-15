@@ -597,9 +597,9 @@ void handleMotor()
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { distance = readUltrasonicDistanceInCm(); ...
   */
-  if (onOff == 1 && distance < 7 && ultraSonicSensorStatus == "On") // [&& ultraSonicSensorStatus == "On"] is important, because if ultraSonicSensorStatus is off, the distance is 0, so this if would always be true
-  // bool obstacleSensorValue = obstacleCheck();
-  // if (onOff == 1 && obstacleSensorValue == LOW)
+  // if (onOff == 1 && distance < 7 && ultraSonicSensorStatus == "On") // [&& ultraSonicSensorStatus == "On"] is important, because if ultraSonicSensorStatus is off, the distance is 0, so this if would always be true
+  bool obstacleSensorValue = obstacleCheck();
+  if (onOff == 1 && obstacleSensorValue == LOW)
   {
     // !!! Implement here: Send signal: "Obstacle !!!" !!!
 
