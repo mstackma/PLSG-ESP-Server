@@ -315,20 +315,6 @@ String appControlState()
   return "";
 }
 
-int analogReadLightSensor(int sensorPin)
-{
-  int sensorData;
-  if (lightSensorStatus == "On")
-  {
-    sensorData = analogRead(sensorPin);
-  }
-  else
-  {
-    sensorData = 0;
-  }
-  return sensorData;
-}
-
 int readUltrasonicDistanceInCm() // int is only necessary for 3 pin ultraSonicSensor
 {
   int distanceCm;
@@ -435,13 +421,13 @@ String processor(const String &var)
   else if (var == "LIGHTL")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
+    analogLightValueLeft = analogRead(lightSensorPin1);
     return String(analogLightValueLeft);
   }
   else if (var == "LIGHTR")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueRight = analogReadLightSensor(lightSensorPin2);
+    analogLightValueRight = analogRead(lightSensorPin2);
     return String(analogLightValueRight);
   }
   else if (var == "ULTRADISTANCE")
@@ -584,6 +570,8 @@ bool obstacleCheck()
 
 void handleMotorLed()
 {
+  ledLeft = inputLedLeft;
+  ledRight = inputLedRight;
   /*
   It is important to run the readUltrasonicDistanceInCm() at regular intervals,
   as otherwise incorrect distance values may result!
@@ -621,16 +609,14 @@ void handleMotorLed()
     motorLeftB = inputMotorLeftB;
     motorRightF = inputMotorRightF;
     motorRightB = inputMotorRightB;
-    ledLeft = inputLedLeft;
-    ledRight = inputLedRight;
   }
-  else if (onOff == 1 && appControl == 0)
+  else if (onOff == 1 && appControl == 0 && lightSensorStatus == "On")
   {
     // reads the light input on analog pin (value between 0 and 4095)
-    analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
-    analogLightValueRight = analogReadLightSensor(lightSensorPin2);
+    analogLightValueLeft = analogRead(lightSensorPin1);
+    analogLightValueRight = analogRead(lightSensorPin2);
     ledLeft = map(analogLightValueLeft, thresholdLight, 4095, 10, 255);
-    ledRight = map(analogLightValueRight, thresholdLight, 4095, 10, 255);;
+    ledRight = map(analogLightValueRight, thresholdLight, 4095, 10, 255);
 
     if (analogLightValueRight > thresholdLight || analogLightValueLeft > thresholdLight)
     {
@@ -782,11 +768,11 @@ void setup()
     }
     else if (request->hasParam("lightL")) {
       outputMessage = "lightL: ";
-      outputMessage += String(analogReadLightSensor(lightSensorPin1)).c_str();
+      outputMessage += String(analogRead(lightSensorPin1)).c_str();
     }
     else if (request->hasParam("lightR")) {
       outputMessage = "lightR: ";
-      outputMessage += String(analogReadLightSensor(lightSensorPin2)).c_str();
+      outputMessage += String(analogRead(lightSensorPin2)).c_str();
     }
     else if (request->hasParam("ultraSonicDistance")) {
       outputMessage = "ultraSonicDistance: ";
@@ -952,15 +938,15 @@ void setup()
             { request->send(200, "text/plain", String(appControl).c_str()); });
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin1)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str()); });
 
   server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin2)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str()); });
 
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { distance = readUltrasonicDistanceInCm();
             request->send_P(200, "text/plain", String(distance).c_str()); });
-
+  
   server.onNotFound(notFound);
   server.begin();
 
