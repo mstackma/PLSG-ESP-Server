@@ -386,6 +386,20 @@ bool obstacleCheck()
   return obstacleSensorValue;
 }
 
+int analogReadLightSensor(int sensorPin)
+{
+  int sensorData;
+  if (lightSensorStatus == "On")
+  {
+    sensorData = analogRead(sensorPin);
+  }
+  else
+  {
+    sensorData = 0;
+  }
+  return sensorData;
+}
+
 // Replaces placeholder with stored values
 String processor(const String &var)
 {
@@ -449,13 +463,13 @@ String processor(const String &var)
   else if (var == "LIGHTL")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueLeft = analogRead(lightSensorPin1);
+    analogLightValueLeft = analogReadLightSensor(lightSensorPin1);
     return String(analogLightValueLeft);
   }
   else if (var == "LIGHTR")
   {
     // reads the input on analog pin (value between 0 and 4095)
-    analogLightValueRight = analogRead(lightSensorPin2);
+    analogLightValueRight = analogReadLightSensor(lightSensorPin2);
     return String(analogLightValueRight);
   }
   else if (var == "ULTRADISTANCE")
@@ -784,11 +798,11 @@ void setup()
     }
     else if (request->hasParam("lightL")) {
       outputMessage = "lightL: ";
-      outputMessage += String(analogRead(lightSensorPin1)).c_str();
+      outputMessage += String(analogReadLightSensor(lightSensorPin1)).c_str();
     }
     else if (request->hasParam("lightR")) {
       outputMessage = "lightR: ";
-      outputMessage += String(analogRead(lightSensorPin2)).c_str();
+      outputMessage += String(analogReadLightSensor(lightSensorPin2)).c_str();
     }
     else if (request->hasParam("ultraSonicDistance")) {
       outputMessage = "ultraSonicDistance: ";
@@ -958,10 +972,10 @@ void setup()
             { request->send(200, "text/plain", String(appControl).c_str()); });
 
   server.on("/lightL", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin1)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin1)).c_str()); });
 
   server.on("/lightR", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send_P(200, "text/plain", String(analogRead(lightSensorPin2)).c_str()); });
+            { request->send_P(200, "text/plain", String(analogReadLightSensor(lightSensorPin2)).c_str()); });
 
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { distance = readUltrasonicDistanceInCm();
