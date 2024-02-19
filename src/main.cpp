@@ -102,7 +102,7 @@ const char *PARAM_WEB_BUTTON_OBSTACLE_SENSOR = "obstacleSensorStatus"; // obstac
 const char *PARAM_WEB_BUTTON_CONNECTIONTYPE = "motorSensorConnection"; // motorSensorConnection "cross" or "parallel"
 const char *PARAM_BUTTON_APPCONTROL = "state";                         // appControl state (web and real button)
 
-// HTML web page to handle 4 input fields (motorLeftF..) and a button
+// HTML web page
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -180,6 +180,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="ultraSonicDistance">%ULTRADISTANCE%</span>
     <span>cm</span>
   <br><br>
+    <span>isObstacle</span> 
+    <span id="isObstacle">%ISOBSTACLE%</span>
+  <br><br>
   <form action="/put" target="hidden-form">
     <input type="button" value="timerResetter" id="timerResetter">
   </form><br>
@@ -240,6 +243,7 @@ function submitMessage() {
 fetchData("lightL", "/lightL");
 fetchData("lightR", "/lightR");
 fetchData("ultraSonicDistance", "/ultraSonicDistance");
+fetchData("isObstacle", "/isObstacle");
 
 function fetchData(elementId, url) {
   setInterval(function () {
@@ -247,6 +251,14 @@ function fetchData(elementId, url) {
     xhttp.onreadystatechange = function() {
       if (this.readyState == 4 && this.status == 200) {
         document.getElementById(elementId).innerHTML = this.responseText;
+        if (elementId == "ultraSonicDistance" || elementId == "isObstacle") {
+          var sensorValue = parseFloat(this.responseText);
+          if ((elementId == "ultraSonicDistance" && sensorValue < 7) || (elementId == "isObstacle" && sensorValue == 0) ) {
+            document.getElementById(elementId).style.backgroundColor = "red";
+          } else {
+            document.getElementById(elementId).style.backgroundColor = "white";
+          }
+        }
       }
     };
     xhttp.open("GET", url, true);
@@ -358,6 +370,22 @@ int readUltrasonicDistanceInCm() // int is only necessary for 3 pin ultraSonicSe
   return averageDistance;
 }
 
+bool obstacleCheck()
+{
+  bool obstacleSensorValue;
+  if (obstacleSensorStatus == "On")
+  {
+    digitalWrite(enablerObstacleSensorPin, HIGH); // activates obstacleSensorPin
+    obstacleSensorValue = digitalRead(obstacleSensorPin);
+  }
+  else
+  {
+    digitalWrite(enablerObstacleSensorPin, LOW);
+    obstacleSensorValue = HIGH; // HIGH = no obstacle
+  }
+  return obstacleSensorValue;
+}
+
 // Replaces placeholder with stored values
 String processor(const String &var)
 {
@@ -433,6 +461,10 @@ String processor(const String &var)
   else if (var == "ULTRADISTANCE")
   {
     return String(distance);
+  }
+  else if (var == "ISOBSTACLE")
+  {
+    return String(obstacleCheck());
   }
   return String();
 }
@@ -550,22 +582,6 @@ void updateMotorLed()
   analogWrite(motorLeftPin2, motorLeftB);
   analogWrite(motorRightPin1, motorRightF);
   analogWrite(motorRightPin2, motorRightB);
-}
-
-bool obstacleCheck()
-{
-  bool obstacleSensorValue;
-  if (obstacleSensorStatus == "On")
-  {
-    digitalWrite(enablerObstacleSensorPin, HIGH); // activates obstacleSensorPin
-    obstacleSensorValue = digitalRead(obstacleSensorPin);
-  }
-  else
-  {
-    digitalWrite(enablerObstacleSensorPin, LOW);
-    obstacleSensorValue = HIGH; // HIGH = no obstacle
-  }
-  return obstacleSensorValue;
 }
 
 void handleMotorLed()
@@ -778,6 +794,10 @@ void setup()
       outputMessage = "ultraSonicDistance: ";
       outputMessage += String(distance).c_str();
     }
+    else if (request->hasParam("isObstacle")) {
+      outputMessage = "isObstacle: ";
+      outputMessage += String(obstacleCheck()).c_str();
+    }
     else {
       outputMessage = "No message sent";
     }
@@ -946,6 +966,9 @@ void setup()
   server.on("/ultraSonicDistance", HTTP_GET, [](AsyncWebServerRequest *request)
             { distance = readUltrasonicDistanceInCm();
             request->send_P(200, "text/plain", String(distance).c_str()); });
+  
+  server.on("/isObstacle", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/plain", String(obstacleCheck()).c_str()); });
   
   server.onNotFound(notFound);
   server.begin();
